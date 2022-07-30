@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.ccw.mapper.CcwTagMapper">
+    
+    <resultMap type="CcwTag" id="CcwTagResult">
+        <result property="id"    column="id"    />
+        <result property="name"    column="name"    />
+        <result property="level"    column="level"    />
+        <result property="parentId"    column="parent_id"    />
+        <result property="keywords"    column="keywords"    />
+        <result property="icon"    column="icon"    />
+        <result property="sort"    column="sort"    />
+        <result property="description"    column="description"    />
+        <result property="deleted"    column="deleted"    />
+        <result property="creator"    column="creator"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updater"    column="updater"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectCcwTagVo">
+        select id, name, level, parent_id, keywords, icon, sort, description, deleted, creator, create_time, updater, update_time, remark from ccw_tag
+    </sql>
+
+    <select id="selectCcwTagList" parameterType="CcwTag" resultMap="CcwTagResult">
+        <include refid="selectCcwTagVo"/>
+        <where>  
+            <if test="name != null  and name != ''"> and name like concat('%', #{name}, '%')</if>
+            <if test="level != null  and level != ''"> and level = #{level}</if>
+            <if test="parentId != null "> and parent_id = #{parentId}</if>
+            <if test="keywords != null  and keywords != ''"> and keywords = #{keywords}</if>
+            <if test="icon != null  and icon != ''"> and icon = #{icon}</if>
+            <if test="sort != null "> and sort = #{sort}</if>
+            <if test="description != null  and description != ''"> and description = #{description}</if>
+            <if test="deleted != null "> and deleted = #{deleted}</if>
+            <if test="creator != null "> and creator = #{creator}</if>
+            <if test="updater != null "> and updater = #{updater}</if>
+        </where>
+    </select>
+    
+    <select id="selectCcwTagById" parameterType="Long" resultMap="CcwTagResult">
+        <include refid="selectCcwTagVo"/>
+        where id = #{id}
+    </select>
+        
+    <insert id="insertCcwTag" parameterType="CcwTag" useGeneratedKeys="true" keyProperty="id">
+        insert into ccw_tag
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null">name,</if>
+            <if test="level != null">level,</if>
+            <if test="parentId != null">parent_id,</if>
+            <if test="keywords != null">keywords,</if>
+            <if test="icon != null">icon,</if>
+            <if test="sort != null">sort,</if>
+            <if test="description != null">description,</if>
+            <if test="deleted != null">deleted,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updater != null">updater,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="name != null">#{name},</if>
+            <if test="level != null">#{level},</if>
+            <if test="parentId != null">#{parentId},</if>
+            <if test="keywords != null">#{keywords},</if>
+            <if test="icon != null">#{icon},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="description != null">#{description},</if>
+            <if test="deleted != null">#{deleted},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updater != null">#{updater},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateCcwTag" parameterType="CcwTag">
+        update ccw_tag
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null">name = #{name},</if>
+            <if test="level != null">level = #{level},</if>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="keywords != null">keywords = #{keywords},</if>
+            <if test="icon != null">icon = #{icon},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="deleted != null">deleted = #{deleted},</if>
+            <if test="creator != null">creator = #{creator},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updater != null">updater = #{updater},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteCcwTagById" parameterType="Long">
+        delete from ccw_tag where id = #{id}
+    </delete>
+
+    <delete id="deleteCcwTagByIds" parameterType="String">
+        delete from ccw_tag where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

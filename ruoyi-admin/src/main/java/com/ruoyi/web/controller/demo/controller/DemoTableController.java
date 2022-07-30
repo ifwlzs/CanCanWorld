@@ -462,8 +462,8 @@ public class DemoTableController extends BaseController
             rspData.setTotal(userList.size());
             return rspData;
         }
-        Integer pageNum = (pageDomain.getPageNum() - 1) * 10;
-        Integer pageSize = pageDomain.getPageNum() * 10;
+        Integer pageNum = (pageDomain.getPageNum() - 1) * 25;
+        Integer pageSize = pageDomain.getPageNum() * 25;
         if (pageSize > userList.size())
         {
             pageSize = userList.size();
@@ -506,8 +506,8 @@ public class DemoTableController extends BaseController
             }
         }
         PageDomain pageDomain = TableSupport.buildPageRequest();
-        Integer pageNum = (pageDomain.getPageNum() - 1) * 10;
-        Integer pageSize = pageDomain.getPageNum() * 10;
+        Integer pageNum = (pageDomain.getPageNum() - 1) * 25;
+        Integer pageSize = pageDomain.getPageNum() * 25;
         if (pageSize > areaList.size())
         {
             pageSize = areaList.size();

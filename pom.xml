@@ -31,6 +31,7 @@
         <commons.fileupload.version>1.4</commons.fileupload.version>
         <poi.version>4.1.2</poi.version>
         <velocity.version>2.3</velocity.version>
+        <hutool.version>5.8.4</hutool.version>
     </properties>
 
     <!-- 依赖声明 -->
@@ -199,6 +200,18 @@
                 <version>${ruoyi.version}</version>
             </dependency>
 
+            <!-- CCW-->
+            <dependency>
+                <groupId>com.ruoyi</groupId>
+                <artifactId>juhua-ccw</artifactId>
+                <version>${ruoyi.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-all</artifactId>
+                <version>${hutool.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -209,6 +222,7 @@
         <module>ruoyi-quartz</module>
         <module>ruoyi-generator</module>
         <module>ruoyi-common</module>
+        <module>juhua-ccw</module>
     </modules>
     <packaging>pom</packaging>
 

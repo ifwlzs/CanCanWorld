@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.ccw.mapper.CcwBookmarkTagMapper">
+    
+    <resultMap type="CcwBookmarkTag" id="CcwBookmarkTagResult">
+        <result property="id"    column="id"    />
+        <result property="bookmarkId"    column="bookmark_id"    />
+        <result property="tagId"    column="tag_id"    />
+    </resultMap>
+
+    <sql id="selectCcwBookmarkTagVo">
+        select id, bookmark_id, tag_id from ccw_bookmark_tag
+    </sql>
+
+    <select id="selectCcwBookmarkTagList" parameterType="CcwBookmarkTag" resultMap="CcwBookmarkTagResult">
+        <include refid="selectCcwBookmarkTagVo"/>
+        <where>  
+            <if test="bookmarkId != null "> and bookmark_id = #{bookmarkId}</if>
+            <if test="tagId != null "> and tag_id = #{tagId}</if>
+        </where>
+    </select>
+    
+    <select id="selectCcwBookmarkTagById" parameterType="Long" resultMap="CcwBookmarkTagResult">
+        <include refid="selectCcwBookmarkTagVo"/>
+        where id = #{id}
+    </select>
+        
+    <insert id="insertCcwBookmarkTag" parameterType="CcwBookmarkTag">
+        insert into ccw_bookmark_tag
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="bookmarkId != null">bookmark_id,</if>
+            <if test="tagId != null">tag_id,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="bookmarkId != null">#{bookmarkId},</if>
+            <if test="tagId != null">#{tagId},</if>
+         </trim>
+    </insert>
+
+    <update id="updateCcwBookmarkTag" parameterType="CcwBookmarkTag">
+        update ccw_bookmark_tag
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="bookmarkId != null">bookmark_id = #{bookmarkId},</if>
+            <if test="tagId != null">tag_id = #{tagId},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteCcwBookmarkTagById" parameterType="Long">
+        delete from ccw_bookmark_tag where id = #{id}
+    </delete>
+
+    <delete id="deleteCcwBookmarkTagByIds" parameterType="String">
+        delete from ccw_bookmark_tag where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

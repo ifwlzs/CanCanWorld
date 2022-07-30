@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.ccw.mapper.CcwSearchEngineMapper">
+    
+    <resultMap type="CcwSearchEngine" id="CcwSearchEngineResult">
+        <result property="id"    column="id"    />
+        <result property="name"    column="name"    />
+        <result property="url"    column="url"    />
+        <result property="icon"    column="icon"    />
+        <result property="deleted"    column="deleted"    />
+        <result property="creator"    column="creator"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updater"    column="updater"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+        <result property="sort"    column="sort"    />
+        <result property="status"    column="status"    />
+        <result property="detectionTime"    column="detection_time"    />
+        <result property="createDate"    column="create_date"    />
+        <result property="updateDate"    column="update_date"    />
+        <result property="detectionDate"    column="detection_date"    />
+    </resultMap>
+
+    <sql id="selectCcwSearchEngineVo">
+        select id, name, url, icon, deleted, creator, create_time, updater, update_time, remark, sort, status, detection_time, create_date, update_date, detection_date from ccw_search_engine
+    </sql>
+
+    <select id="selectCcwSearchEngineList" parameterType="CcwSearchEngine" resultMap="CcwSearchEngineResult">
+        <include refid="selectCcwSearchEngineVo"/>
+        <where>  
+            <if test="name != null  and name != ''"> and name like concat('%', #{name}, '%')</if>
+            <if test="url != null  and url != ''"> and url = #{url}</if>
+            <if test="icon != null  and icon != ''"> and icon = #{icon}</if>
+            <if test="deleted != null "> and deleted = #{deleted}</if>
+            <if test="creator != null "> and creator = #{creator}</if>
+            <if test="updater != null "> and updater = #{updater}</if>
+            <if test="sort != null "> and sort = #{sort}</if>
+            <if test="status != null "> and status = #{status}</if>
+            <if test="detectionTime != null "> and detection_time = #{detectionTime}</if>
+            <if test="createDate != null "> and create_date = #{createDate}</if>
+            <if test="updateDate != null "> and update_date = #{updateDate}</if>
+            <if test="detectionDate != null "> and detection_date = #{detectionDate}</if>
+        </where>
+    </select>
+    
+    <select id="selectCcwSearchEngineById" parameterType="Long" resultMap="CcwSearchEngineResult">
+        <include refid="selectCcwSearchEngineVo"/>
+        where id = #{id}
+    </select>
+        
+    <insert id="insertCcwSearchEngine" parameterType="CcwSearchEngine" useGeneratedKeys="true" keyProperty="id">
+        insert into ccw_search_engine
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null">name,</if>
+            <if test="url != null">url,</if>
+            <if test="icon != null">icon,</if>
+            <if test="deleted != null">deleted,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updater != null">updater,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sort != null">sort,</if>
+            <if test="status != null">status,</if>
+            <if test="detectionTime != null">detection_time,</if>
+            <if test="createDate != null">create_date,</if>
+            <if test="updateDate != null">update_date,</if>
+            <if test="detectionDate != null">detection_date,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="name != null">#{name},</if>
+            <if test="url != null">#{url},</if>
+            <if test="icon != null">#{icon},</if>
+            <if test="deleted != null">#{deleted},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updater != null">#{updater},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="status != null">#{status},</if>
+            <if test="detectionTime != null">#{detectionTime},</if>
+            <if test="createDate != null">#{createDate},</if>
+            <if test="updateDate != null">#{updateDate},</if>
+            <if test="detectionDate != null">#{detectionDate},</if>
+         </trim>
+    </insert>
+
+    <update id="updateCcwSearchEngine" parameterType="CcwSearchEngine">
+        update ccw_search_engine
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null">name = #{name},</if>
+            <if test="url != null">url = #{url},</if>
+            <if test="icon != null">icon = #{icon},</if>
+            <if test="deleted != null">deleted = #{deleted},</if>
+            <if test="creator != null">creator = #{creator},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updater != null">updater = #{updater},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="detectionTime != null">detection_time = #{detectionTime},</if>
+            <if test="createDate != null">create_date = #{createDate},</if>
+            <if test="updateDate != null">update_date = #{updateDate},</if>
+            <if test="detectionDate != null">detection_date = #{detectionDate},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteCcwSearchEngineById" parameterType="Long">
+        delete from ccw_search_engine where id = #{id}
+    </delete>
+
+    <delete id="deleteCcwSearchEngineByIds" parameterType="String">
+        delete from ccw_search_engine where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

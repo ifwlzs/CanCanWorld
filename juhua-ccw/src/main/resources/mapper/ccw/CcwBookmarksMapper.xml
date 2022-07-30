@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.ccw.mapper.CcwBookmarksMapper">
+    
+    <resultMap type="CcwBookmarks" id="CcwBookmarksResult">
+        <result property="id"    column="id"    />
+        <result property="uid"    column="uid"    />
+        <result property="name"    column="name"    />
+        <result property="summary"    column="summary"    />
+        <result property="description"    column="description"    />
+        <result property="url"    column="url"    />
+        <result property="icon"    column="icon"    />
+        <result property="tagId"    column="tag_id"    />
+        <result property="statusCode"    column="status_code"    />
+        <result property="deleted"    column="deleted"    />
+        <result property="sort"    column="sort"    />
+        <result property="creator"    column="creator"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updater"    column="updater"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+        <result property="detectionTime"    column="detection_time"    />
+        <result property="createDate"    column="create_date"    />
+        <result property="updateDate"    column="update_date"    />
+        <result property="detectionDate"    column="detection_date"    />
+    </resultMap>
+
+    <sql id="selectCcwBookmarksVo">
+        select id, uid, name, summary, description, url, icon, tag_id, status_code, deleted, sort, creator, create_time, updater, update_time, remark, detection_time, create_date, update_date, detection_date from ccw_bookmarks
+    </sql>
+
+    <select id="selectCcwBookmarksList" parameterType="CcwBookmarks" resultMap="CcwBookmarksResult">
+        <include refid="selectCcwBookmarksVo"/>
+        <where>  
+            <if test="uid != null "> and uid = #{uid}</if>
+            <if test="name != null  and name != ''"> and name like concat('%', #{name}, '%')</if>
+            <if test="summary != null  and summary != ''"> and summary = #{summary}</if>
+            <if test="description != null  and description != ''"> and description = #{description}</if>
+            <if test="url != null  and url != ''"> and url = #{url}</if>
+            <if test="icon != null  and icon != ''"> and icon = #{icon}</if>
+            <if test="tagId != null  and tagId != ''"> and tag_id = #{tagId}</if>
+            <if test="statusCode != null "> and status_code = #{statusCode}</if>
+            <if test="deleted != null "> and deleted = #{deleted}</if>
+            <if test="sort != null "> and sort = #{sort}</if>
+            <if test="creator != null "> and creator = #{creator}</if>
+            <if test="updater != null "> and updater = #{updater}</if>
+            <if test="detectionTime != null "> and detection_time = #{detectionTime}</if>
+            <if test="createDate != null "> and create_date = #{createDate}</if>
+            <if test="updateDate != null "> and update_date = #{updateDate}</if>
+            <if test="detectionDate != null "> and detection_date = #{detectionDate}</if>
+        </where>
+    </select>
+    
+    <select id="selectCcwBookmarksById" parameterType="Long" resultMap="CcwBookmarksResult">
+        <include refid="selectCcwBookmarksVo"/>
+        where id = #{id}
+    </select>
+        
+    <insert id="insertCcwBookmarks" parameterType="CcwBookmarks" useGeneratedKeys="true" keyProperty="id">
+        insert into ccw_bookmarks
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="uid != null">uid,</if>
+            <if test="name != null">name,</if>
+            <if test="summary != null">summary,</if>
+            <if test="description != null">description,</if>
+            <if test="url != null">url,</if>
+            <if test="icon != null">icon,</if>
+            <if test="tagId != null">tag_id,</if>
+            <if test="statusCode != null">status_code,</if>
+            <if test="deleted != null">deleted,</if>
+            <if test="sort != null">sort,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updater != null">updater,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="detectionTime != null">detection_time,</if>
+            <if test="createDate != null">create_date,</if>
+            <if test="updateDate != null">update_date,</if>
+            <if test="detectionDate != null">detection_date,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="uid != null">#{uid},</if>
+            <if test="name != null">#{name},</if>
+            <if test="summary != null">#{summary},</if>
+            <if test="description != null">#{description},</if>
+            <if test="url != null">#{url},</if>
+            <if test="icon != null">#{icon},</if>
+            <if test="tagId != null">#{tagId},</if>
+            <if test="statusCode != null">#{statusCode},</if>
+            <if test="deleted != null">#{deleted},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updater != null">#{updater},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="detectionTime != null">#{detectionTime},</if>
+            <if test="createDate != null">#{createDate},</if>
+            <if test="updateDate != null">#{updateDate},</if>
+            <if test="detectionDate != null">#{detectionDate},</if>
+         </trim>
+    </insert>
+
+    <update id="updateCcwBookmarks" parameterType="CcwBookmarks">
+        update ccw_bookmarks
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="uid != null">uid = #{uid},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="summary != null">summary = #{summary},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="url != null">url = #{url},</if>
+            <if test="icon != null">icon = #{icon},</if>
+            <if test="tagId != null">tag_id = #{tagId},</if>
+            <if test="statusCode != null">status_code = #{statusCode},</if>
+            <if test="deleted != null">deleted = #{deleted},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="creator != null">creator = #{creator},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updater != null">updater = #{updater},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="detectionTime != null">detection_time = #{detectionTime},</if>
+            <if test="createDate != null">create_date = #{createDate},</if>
+            <if test="updateDate != null">update_date = #{updateDate},</if>
+            <if test="detectionDate != null">detection_date = #{detectionDate},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteCcwBookmarksById" parameterType="Long">
+        delete from ccw_bookmarks where id = #{id}
+    </delete>
+
+    <delete id="deleteCcwBookmarksByIds" parameterType="String">
+        delete from ccw_bookmarks where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>
