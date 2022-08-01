@@ -19,6 +19,14 @@
                                 <input type="text" name="tagId"/>
                             </li>
                             <li>
+                                <label>创建日：</label>
+                                <input type="text" class="time-input" placeholder="请选择创建日" name="createDate"/>
+                            </li>
+                            <li>
+                                <label>更新日：</label>
+                                <input type="text" class="time-input" placeholder="请选择更新日" name="updateDate"/>
+                            </li>
+                            <li>
                                 <a class="btn btn-primary btn-rounded btn-sm" onclick="$.table.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
                                 <a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
                             </li>
@@ -75,6 +83,18 @@
                 {
                     field: 'tagId',
                     title: '标签表主键id'
+                },
+                {
+                    field: 'createDate',
+                    title: '创建日'
+                },
+                {
+                    field: 'updateDate',
+                    title: '更新日'
+                },
+                {
+                    field: 'remark',
+                    title: '备注'
                 },
                 {
                     title: '操作',

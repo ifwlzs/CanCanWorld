@@ -2,6 +2,7 @@
 <html lang="zh" xmlns:th="http://www.thymeleaf.org" >
 <head>
     <th:block th:include="include :: header('修改书签-tag关联')" />
+    <th:block th:include="include :: datetimepicker-css" />
 </head>
 <body class="white-bg">
     <div class="wrapper wrapper-content animated fadeInRight ibox-content">
@@ -19,9 +20,34 @@
                     <input name="tagId" th:field="*{tagId}" class="form-control" type="text">
                 </div>
             </div>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">创建日：</label>
+                <div class="col-sm-8">
+                    <div class="input-group date">
+                        <input name="createDate" th:value="${#dates.format(ccwBookmarkTag.createDate, 'yyyy-MM-dd')}" class="form-control" placeholder="yyyy-MM-dd" type="text">
+                        <span class="input-group-addon"><i class="fa fa-calendar"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">更新日：</label>
+                <div class="col-sm-8">
+                    <div class="input-group date">
+                        <input name="updateDate" th:value="${#dates.format(ccwBookmarkTag.updateDate, 'yyyy-MM-dd')}" class="form-control" placeholder="yyyy-MM-dd" type="text">
+                        <span class="input-group-addon"><i class="fa fa-calendar"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">备注：</label>
+                <div class="col-sm-8">
+                    <input name="remark" th:field="*{remark}" class="form-control" type="text">
+                </div>
+            </div>
         </form>
     </div>
     <th:block th:include="include :: footer" />
+    <th:block th:include="include :: datetimepicker-js" />
     <script th:inline="javascript">
         var prefix = ctx + "ccw/bookmarkTag";
         $("#form-bookmarkTag-edit").validate({
@@ -33,6 +59,18 @@
                 $.operate.save(prefix + "/edit", $('#form-bookmarkTag-edit').serialize());
             }
         }
+
+        $("input[name='createDate']").datetimepicker({
+            format: "yyyy-mm-dd",
+            minView: "month",
+            autoclose: true
+        });
+
+        $("input[name='updateDate']").datetimepicker({
+            format: "yyyy-mm-dd",
+            minView: "month",
+            autoclose: true
+        });
     </script>
 </body>
 </html>

@@ -2,12 +2,13 @@ package com.ruoyi.ccw.mapper;
 
 import java.util.List;
 import com.ruoyi.ccw.domain.CcwTag;
+import com.ruoyi.ccw.dto.CcwTagTreeDTO;
 
 /**
  * 书签标签Mapper接口
  * 
  * @author ifwlzs
- * @date 2022-07-27
+ * @date 2022-07-31
  */
 public interface CcwTagMapper 
 {
@@ -58,4 +59,10 @@ public interface CcwTagMapper
      * @return 结果
      */
     public int deleteCcwTagByIds(String[] ids);
+    /**
+     * 获取tree
+     * @param ccwTag
+     * @return
+     */
+
 }

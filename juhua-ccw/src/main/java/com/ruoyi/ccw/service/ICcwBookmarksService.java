@@ -7,7 +7,7 @@ import com.ruoyi.ccw.domain.CcwBookmarks;
  * 书签Service接口
  * 
  * @author ifwlzs
- * @date 2022-07-27
+ * @date 2022-07-31
  */
 public interface ICcwBookmarksService 
 {

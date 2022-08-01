@@ -28,7 +28,6 @@ public class TestNetwork {
         boolean flag = false;
         String line = null;
         StringBuffer sb = new StringBuffer();
-        //TODO 正则匹配域名
         try {
             Process process = Runtime.getRuntime().exec(PING + REQUEST_URL);
             BufferedReader buf = new BufferedReader(new InputStreamReader(

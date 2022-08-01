@@ -1,13 +1,16 @@
 package com.ruoyi.ccw.service;
 
 import java.util.List;
+
+import cn.hutool.core.lang.tree.Tree;
 import com.ruoyi.ccw.domain.CcwTag;
+import com.ruoyi.ccw.dto.CcwTagTreeDTO;
 
 /**
  * 书签标签Service接口
  * 
  * @author ifwlzs
- * @date 2022-07-27
+ * @date 2022-07-31
  */
 public interface ICcwTagService 
 {
@@ -58,4 +61,11 @@ public interface ICcwTagService
      * @return 结果
      */
     public int deleteCcwTagById(Long id);
+
+    /**
+     * 获取书签树
+     * @param ccwTag
+     * @return
+     */
+    public List<Tree<Long>>  selectCcwTagTree();
 }

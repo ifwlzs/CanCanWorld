@@ -1,6 +1,7 @@
 package com.ruoyi.ccw.service.impl;
 
 import java.util.List;
+import com.ruoyi.common.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.ccw.mapper.CcwBookmarkTagMapper;
@@ -13,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 书签-tag关联Service业务层处理
  * 
  * @author ifwlzs
- * @date 2022-07-27
+ * @date 2022-07-31
  */
 @Service
 public class CcwBookmarkTagServiceImpl implements ICcwBookmarkTagService 
@@ -55,6 +56,7 @@ public class CcwBookmarkTagServiceImpl implements ICcwBookmarkTagService
     @Transactional
     public int insertCcwBookmarkTag(CcwBookmarkTag ccwBookmarkTag)
     {
+        ccwBookmarkTag.setCreateTime(DateUtils.getNowDate());
         return ccwBookmarkTagMapper.insertCcwBookmarkTag(ccwBookmarkTag);
     }
 
@@ -68,6 +70,7 @@ public class CcwBookmarkTagServiceImpl implements ICcwBookmarkTagService
     @Transactional
     public int updateCcwBookmarkTag(CcwBookmarkTag ccwBookmarkTag)
     {
+        ccwBookmarkTag.setUpdateTime(DateUtils.getNowDate());
         return ccwBookmarkTagMapper.updateCcwBookmarkTag(ccwBookmarkTag);
     }
 

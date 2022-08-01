@@ -1,5 +1,8 @@
 package com.ruoyi.ccw.domain;
 
+import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.*;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.ruoyi.common.annotation.Excel;
@@ -9,8 +12,13 @@ import com.ruoyi.common.core.domain.BaseEntity;
  * 书签-tag关联对象 ccw_bookmark_tag
  * 
  * @author ifwlzs
- * @date 2022-07-27
+ * @date 2022-07-31
  */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+@Builder
 public class CcwBookmarkTag extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
@@ -26,40 +34,14 @@ public class CcwBookmarkTag extends BaseEntity
     @Excel(name = "标签表主键id")
     private Long tagId;
 
-    public void setId(Long id) 
-    {
-        this.id = id;
-    }
+    /** 创建日 */
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    @Excel(name = "创建日", width = 30, dateFormat = "yyyy-MM-dd")
+    private Date createDate;
 
-    public Long getId() 
-    {
-        return id;
-    }
-    public void setBookmarkId(Long bookmarkId) 
-    {
-        this.bookmarkId = bookmarkId;
-    }
+    /** 更新日 */
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    @Excel(name = "更新日", width = 30, dateFormat = "yyyy-MM-dd")
+    private Date updateDate;
 
-    public Long getBookmarkId() 
-    {
-        return bookmarkId;
-    }
-    public void setTagId(Long tagId) 
-    {
-        this.tagId = tagId;
-    }
-
-    public Long getTagId() 
-    {
-        return tagId;
-    }
-
-    @Override
-    public String toString() {
-        return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
-            .append("id", getId())
-            .append("bookmarkId", getBookmarkId())
-            .append("tagId", getTagId())
-            .toString();
-    }
 }

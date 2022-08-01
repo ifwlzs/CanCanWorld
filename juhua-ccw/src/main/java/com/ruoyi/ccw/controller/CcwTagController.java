@@ -1,6 +1,11 @@
 package com.ruoyi.ccw.controller;
 
 import java.util.List;
+
+import cn.hutool.core.lang.tree.Tree;
+import com.ruoyi.ccw.dto.CcwTagTreeDTO;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -21,14 +26,14 @@ import com.ruoyi.common.core.page.TableDataInfo;
 
 /**
  * 书签标签Controller
- * 
+ *
  * @author ifwlzs
- * @date 2022-07-27
+ * @date 2022-07-31
  */
 @Controller
 @RequestMapping("/ccw/tag")
-public class CcwTagController extends BaseController
-{
+@Api(tags = "书签标签Controller")
+public class CcwTagController extends BaseController {
     private String prefix = "ccw/tag";
 
     @Autowired
@@ -36,8 +41,7 @@ public class CcwTagController extends BaseController
 
     @RequiresPermissions("ccw:tag:view")
     @GetMapping()
-    public String tag()
-    {
+    public String tag() {
         return prefix + "/tag";
     }
 
@@ -47,8 +51,7 @@ public class CcwTagController extends BaseController
     @RequiresPermissions("ccw:tag:list")
     @PostMapping("/list")
     @ResponseBody
-    public TableDataInfo list(CcwTag ccwTag)
-    {
+    public TableDataInfo list(CcwTag ccwTag) {
         startPage();
         List<CcwTag> list = ccwTagService.selectCcwTagList(ccwTag);
         return getDataTable(list);
@@ -61,8 +64,7 @@ public class CcwTagController extends BaseController
     @Log(title = "书签标签", businessType = BusinessType.EXPORT)
     @PostMapping("/export")
     @ResponseBody
-    public AjaxResult export(CcwTag ccwTag)
-    {
+    public AjaxResult export(CcwTag ccwTag) {
         List<CcwTag> list = ccwTagService.selectCcwTagList(ccwTag);
         ExcelUtil<CcwTag> util = new ExcelUtil<CcwTag>(CcwTag.class);
         return util.exportExcel(list, "书签标签数据");
@@ -72,8 +74,7 @@ public class CcwTagController extends BaseController
      * 新增书签标签
      */
     @GetMapping("/add")
-    public String add()
-    {
+    public String add() {
         return prefix + "/add";
     }
 
@@ -84,8 +85,7 @@ public class CcwTagController extends BaseController
     @Log(title = "书签标签", businessType = BusinessType.INSERT)
     @PostMapping("/add")
     @ResponseBody
-    public AjaxResult addSave(CcwTag ccwTag)
-    {
+    public AjaxResult addSave(CcwTag ccwTag) {
         return toAjax(ccwTagService.insertCcwTag(ccwTag));
     }
 
@@ -94,8 +94,7 @@ public class CcwTagController extends BaseController
      */
     @RequiresPermissions("ccw:tag:edit")
     @GetMapping("/edit/{id}")
-    public String edit(@PathVariable("id") Long id, ModelMap mmap)
-    {
+    public String edit(@PathVariable("id") Long id, ModelMap mmap) {
         CcwTag ccwTag = ccwTagService.selectCcwTagById(id);
         mmap.put("ccwTag", ccwTag);
         return prefix + "/edit";
@@ -108,8 +107,7 @@ public class CcwTagController extends BaseController
     @Log(title = "书签标签", businessType = BusinessType.UPDATE)
     @PostMapping("/edit")
     @ResponseBody
-    public AjaxResult editSave(CcwTag ccwTag)
-    {
+    public AjaxResult editSave(CcwTag ccwTag) {
         return toAjax(ccwTagService.updateCcwTag(ccwTag));
     }
 
@@ -118,10 +116,25 @@ public class CcwTagController extends BaseController
      */
     @RequiresPermissions("ccw:tag:remove")
     @Log(title = "书签标签", businessType = BusinessType.DELETE)
-    @PostMapping( "/remove")
+    @PostMapping("/remove")
     @ResponseBody
-    public AjaxResult remove(String ids)
-    {
+    public AjaxResult remove(String ids) {
         return toAjax(ccwTagService.deleteCcwTagByIds(ids));
     }
+
+    /**
+     * 查询书签标签树
+     */
+    @RequiresPermissions("ccw:tag:tree")
+    @PostMapping("/tree")
+    @ResponseBody
+    @ApiOperation("查询书签标签树")
+    public TableDataInfo tree() {
+        //startPage();
+        List<Tree<Long>> list = ccwTagService.selectCcwTagTree();
+
+        return getDataTable(list);
+    }
+
+
 }

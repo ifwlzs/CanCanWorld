@@ -1,6 +1,12 @@
 package com.ruoyi.ccw.service.impl;
 
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import cn.hutool.core.lang.tree.Tree;
+import cn.hutool.core.lang.tree.TreeNodeConfig;
+import cn.hutool.core.lang.tree.TreeUtil;
+import com.ruoyi.ccw.dto.CcwTagTreeDTO;
 import com.ruoyi.common.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -12,91 +18,157 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 书签标签Service业务层处理
- * 
+ *
  * @author ifwlzs
- * @date 2022-07-27
+ * @date 2022-07-31
  */
 @Service
-public class CcwTagServiceImpl implements ICcwTagService 
-{
+public class CcwTagServiceImpl implements ICcwTagService {
     @Autowired
     private CcwTagMapper ccwTagMapper;
 
     /**
      * 查询书签标签
-     * 
+     *
      * @param id 书签标签主键
      * @return 书签标签
      */
     @Override
-    public CcwTag selectCcwTagById(Long id)
-    {
+    public CcwTag selectCcwTagById(Long id) {
         return ccwTagMapper.selectCcwTagById(id);
     }
 
     /**
      * 查询书签标签列表
-     * 
+     *
      * @param ccwTag 书签标签
      * @return 书签标签
      */
     @Override
-    public List<CcwTag> selectCcwTagList(CcwTag ccwTag)
-    {
+    public List<CcwTag> selectCcwTagList(CcwTag ccwTag) {
         return ccwTagMapper.selectCcwTagList(ccwTag);
     }
 
     /**
      * 新增书签标签
-     * 
+     *
      * @param ccwTag 书签标签
      * @return 结果
      */
     @Override
     @Transactional
-    public int insertCcwTag(CcwTag ccwTag)
-    {
+    public int insertCcwTag(CcwTag ccwTag) {
         ccwTag.setCreateTime(DateUtils.getNowDate());
+        long level = 0;
+        if (ccwTag.getParentId() != null) {
+            CcwTag parent = ccwTagMapper.selectCcwTagById(ccwTag.getParentId());
+            if (parent != null) {
+                level = parent.getLevel() + 1;
+            }
+        }
+        ccwTag.setLevel(level);
         return ccwTagMapper.insertCcwTag(ccwTag);
     }
 
     /**
      * 修改书签标签
-     * 
+     *
      * @param ccwTag 书签标签
      * @return 结果
      */
     @Override
     @Transactional
-    public int updateCcwTag(CcwTag ccwTag)
-    {
+    public int updateCcwTag(CcwTag ccwTag) {
         ccwTag.setUpdateTime(DateUtils.getNowDate());
+        long level = 0;
+        if (ccwTag.getParentId() != null) {
+            CcwTag parent = ccwTagMapper.selectCcwTagById(ccwTag.getParentId());
+            if (parent != null) {
+                level = parent.getLevel() + 1;
+            }
+        }
+        ccwTag.setLevel(level);
         return ccwTagMapper.updateCcwTag(ccwTag);
     }
 
     /**
      * 批量删除书签标签
-     * 
+     *
      * @param ids 需要删除的书签标签主键
      * @return 结果
      */
     @Override
     @Transactional
-    public int deleteCcwTagByIds(String ids)
-    {
+    public int deleteCcwTagByIds(String ids) {
         return ccwTagMapper.deleteCcwTagByIds(Convert.toStrArray(ids));
     }
 
     /**
      * 删除书签标签信息
-     * 
+     *
      * @param id 书签标签主键
      * @return 结果
      */
     @Override
     @Transactional
-    public int deleteCcwTagById(Long id)
-    {
+    public int deleteCcwTagById(Long id) {
         return ccwTagMapper.deleteCcwTagById(id);
     }
+
+    /***
+     *
+     * @param
+     * @return
+     */
+    @Override
+    public List<Tree<Long>> selectCcwTagTree() {
+        List<CcwTag> ccwTagList = ccwTagMapper.selectCcwTagList(null);
+        //按照父级id排序，升序，空的置前。
+        ccwTagList = ccwTagList.stream()
+                .sorted(Comparator.comparing(CcwTag::getParentId, Comparator.nullsFirst(Long::compareTo))).collect(Collectors.toList());
+        List<CcwTagTreeDTO> ccwTagTreeDTOList = new ArrayList<>();
+        // 1.查数据
+        for (CcwTag tag : ccwTagList) {
+            ccwTagTreeDTOList.add(CcwTagTreeDTO.builder()
+                    .id(tag.getId())
+                    .name(tag.getName())
+                    .level(tag.getLevel())
+                    .parentId(tag.getParentId())
+                    .keywords(tag.getKeywords())
+                    .icon(tag.getIcon())
+                    .sort(tag.getSort())
+                    .description(tag.getDescription())
+                    .deleted(tag.getDeleted())
+                    .creator(tag.getCreator())
+                    .updater(tag.getUpdater())
+                    .createDate(tag.getCreateDate())
+                    .updateDate(tag.getUpdateDate())
+                    .child(new ArrayList<>())
+                    .build());
+        }
+
+
+        // 2.配置
+        TreeNodeConfig config = new TreeNodeConfig();
+        config.setIdKey("id");//默认为id可以不设置
+        config.setParentIdKey("parentId");//默认为parentId可以不设置
+//      config.setDeep(4);//最⼤递归深度
+        config.setWeightKey("sort");//排序字段
+        config.setChildrenKey("child");//⼦节点
+        // 3.转树，Tree<>⾥⾯泛型为id的类型
+        List<Tree<Long>> build = TreeUtil.build(ccwTagTreeDTOList, null, config,
+                // treeNode – 源数据实体
+                // tree – 树节点实体
+                ((treeNode, tree) -> {
+                    tree.setId(treeNode.getId());
+                    tree.setParentId(treeNode.getParentId());
+                    tree.setWeight(treeNode.getSort());
+                    tree.setName(treeNode.getName());
+                    // 扩展属性 ...
+                    //tree.putExtra("extraField", 666);
+                }));
+        return build;
+    }
+
+
 }

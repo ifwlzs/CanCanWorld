@@ -2,6 +2,7 @@ package com.ruoyi.ccw.domain;
 
 import java.util.Date;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.*;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.ruoyi.common.annotation.Excel;
@@ -11,8 +12,13 @@ import com.ruoyi.common.core.domain.BaseEntity;
  * 搜索引擎对象 ccw_search_engine
  * 
  * @author ifwlzs
- * @date 2022-07-27
+ * @date 2022-07-31
  */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+@Builder
 public class CcwSearchEngine extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
@@ -24,8 +30,8 @@ public class CcwSearchEngine extends BaseEntity
     @Excel(name = "搜索引擎名")
     private String name;
 
-    /** 搜索url。用%s代替搜索字词 */
-    @Excel(name = "搜索url。用%s代替搜索字词")
+    /** 搜索url */
+    @Excel(name = "搜索url")
     private String url;
 
     /** 图标 */
@@ -72,143 +78,4 @@ public class CcwSearchEngine extends BaseEntity
     @Excel(name = "检测日", width = 30, dateFormat = "yyyy-MM-dd")
     private Date detectionDate;
 
-    public void setId(Long id) 
-    {
-        this.id = id;
-    }
-
-    public Long getId() 
-    {
-        return id;
-    }
-    public void setName(String name) 
-    {
-        this.name = name;
-    }
-
-    public String getName() 
-    {
-        return name;
-    }
-    public void setUrl(String url) 
-    {
-        this.url = url;
-    }
-
-    public String getUrl() 
-    {
-        return url;
-    }
-    public void setIcon(String icon) 
-    {
-        this.icon = icon;
-    }
-
-    public String getIcon() 
-    {
-        return icon;
-    }
-    public void setDeleted(Integer deleted) 
-    {
-        this.deleted = deleted;
-    }
-
-    public Integer getDeleted() 
-    {
-        return deleted;
-    }
-    public void setCreator(Long creator) 
-    {
-        this.creator = creator;
-    }
-
-    public Long getCreator() 
-    {
-        return creator;
-    }
-    public void setUpdater(Long updater) 
-    {
-        this.updater = updater;
-    }
-
-    public Long getUpdater() 
-    {
-        return updater;
-    }
-    public void setSort(Long sort) 
-    {
-        this.sort = sort;
-    }
-
-    public Long getSort() 
-    {
-        return sort;
-    }
-    public void setStatus(Long status) 
-    {
-        this.status = status;
-    }
-
-    public Long getStatus() 
-    {
-        return status;
-    }
-    public void setDetectionTime(Date detectionTime) 
-    {
-        this.detectionTime = detectionTime;
-    }
-
-    public Date getDetectionTime() 
-    {
-        return detectionTime;
-    }
-    public void setCreateDate(Date createDate) 
-    {
-        this.createDate = createDate;
-    }
-
-    public Date getCreateDate() 
-    {
-        return createDate;
-    }
-    public void setUpdateDate(Date updateDate) 
-    {
-        this.updateDate = updateDate;
-    }
-
-    public Date getUpdateDate() 
-    {
-        return updateDate;
-    }
-    public void setDetectionDate(Date detectionDate) 
-    {
-        this.detectionDate = detectionDate;
-    }
-
-    public Date getDetectionDate() 
-    {
-        return detectionDate;
-    }
-
-    @Override
-    public String toString() {
-        return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
-            .append("id", getId())
-            .append("name", getName())
-            .append("url", getUrl())
-            .append("icon", getIcon())
-            .append("deleted", getDeleted())
-            .append("creator", getCreator())
-            .append("createTime", getCreateTime())
-            .append("updater", getUpdater())
-            .append("updateTime", getUpdateTime())
-            .append("remark", getRemark())
-            .append("sort", getSort())
-            .append("status", getStatus())
-            .append("detectionTime", getDetectionTime())
-            .append("createDate", getCreateDate())
-            .append("updateDate", getUpdateDate())
-            .append("detectionDate", getDetectionDate())
-            .toString();
-    }
 }

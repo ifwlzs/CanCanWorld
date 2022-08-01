@@ -1036,7 +1036,7 @@
         pageNumber: 1,             // 当前页条数
         pageSize: 25,              // 每页的记录行数
         onClickRow: null,          // 单击某行事件
-        pageList: [25, 50, 100, 200],    // 可供选择的每页的行数
+        pageList: [25, 50, 100, 500, 1000],    // 可供选择的每页的行数
         showTitle: true,           // 是否采用title属性显示字段内容（被formatter格式化的字段不会显示）
         showSearch: true,          // 是否显示检索信息
         showColumns: true,         // 是否显示内容列下拉框

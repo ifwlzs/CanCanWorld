@@ -30,6 +30,7 @@ public class HttpUtils {
         String line = null;
         StringBuffer sb = new StringBuffer();
         //TODO 正则匹配域名
+        //线程让步
         try {
             Process process = Runtime.getRuntime().exec(PING + url);
             BufferedReader buf = new BufferedReader(new InputStreamReader(

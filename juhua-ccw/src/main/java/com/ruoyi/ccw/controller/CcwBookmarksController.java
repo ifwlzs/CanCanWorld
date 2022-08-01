@@ -23,7 +23,7 @@ import com.ruoyi.common.core.page.TableDataInfo;
  * 书签Controller
  * 
  * @author ifwlzs
- * @date 2022-07-27
+ * @date 2022-07-31
  */
 @Controller
 @RequestMapping("/ccw/bookmarks")

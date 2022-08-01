@@ -15,11 +15,11 @@
                                 <input type="text" name="name"/>
                             </li>
                             <li>
-                                <label>分类级别：0-&gt;1级；1-&gt;2级：</label>
+                                <label>分类级别：</label>
                                 <input type="text" name="level"/>
                             </li>
                             <li>
-                                <label>上级分类的编号：0表示一级分类：</label>
+                                <label>父级分类：</label>
                                 <input type="text" name="parentId"/>
                             </li>
                             <li>
@@ -45,6 +45,14 @@
                             <li>
                                 <label>更新者id：</label>
                                 <input type="text" name="updater"/>
+                            </li>
+                            <li>
+                                <label>创建日：</label>
+                                <input type="text" class="time-input" placeholder="请选择创建日" name="createDate"/>
+                            </li>
+                            <li>
+                                <label>更新日：</label>
+                                <input type="text" class="time-input" placeholder="请选择更新日" name="updateDate"/>
                             </li>
                             <li>
                                 <a class="btn btn-primary btn-rounded btn-sm" onclick="$.table.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
@@ -103,11 +111,11 @@
                 },
                 {
                     field: 'level',
-                    title: '分类级别：0-&gt;1级；1-&gt;2级'
+                    title: '分类级别'
                 },
                 {
                     field: 'parentId',
-                    title: '上级分类的编号：0表示一级分类'
+                    title: '父级分类'
                 },
                 {
                     field: 'keywords',
@@ -143,6 +151,14 @@
                 {
                     field: 'remark',
                     title: '备注'
+                },
+                {
+                    field: 'createDate',
+                    title: '创建日'
+                },
+                {
+                    field: 'updateDate',
+                    title: '更新日'
                 },
                 {
                     title: '操作',

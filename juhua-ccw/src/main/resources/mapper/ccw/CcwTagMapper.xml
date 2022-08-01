@@ -19,17 +19,20 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="updater"    column="updater"    />
         <result property="updateTime"    column="update_time"    />
         <result property="remark"    column="remark"    />
+        <result property="createDate"    column="create_date"    />
+        <result property="updateDate"    column="update_date"    />
     </resultMap>
 
     <sql id="selectCcwTagVo">
-        select id, name, level, parent_id, keywords, icon, sort, description, deleted, creator, create_time, updater, update_time, remark from ccw_tag
+        select id, name, level, parent_id, keywords, icon, sort, description, deleted, creator, create_time, updater, update_time, remark, create_date, update_date from ccw_tag
     </sql>
 
     <select id="selectCcwTagList" parameterType="CcwTag" resultMap="CcwTagResult">
         <include refid="selectCcwTagVo"/>
-        <where>  
+        <where>
+            <if test="id != null "> and id = #{id}</if>
             <if test="name != null  and name != ''"> and name like concat('%', #{name}, '%')</if>
-            <if test="level != null  and level != ''"> and level = #{level}</if>
+            <if test="level != null "> and level = #{level}</if>
             <if test="parentId != null "> and parent_id = #{parentId}</if>
             <if test="keywords != null  and keywords != ''"> and keywords = #{keywords}</if>
             <if test="icon != null  and icon != ''"> and icon = #{icon}</if>
@@ -38,6 +41,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="deleted != null "> and deleted = #{deleted}</if>
             <if test="creator != null "> and creator = #{creator}</if>
             <if test="updater != null "> and updater = #{updater}</if>
+            <if test="createDate != null "> and create_date = #{createDate}</if>
+            <if test="updateDate != null "> and update_date = #{updateDate}</if>
         </where>
     </select>
     
@@ -62,6 +67,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updater != null">updater,</if>
             <if test="updateTime != null">update_time,</if>
             <if test="remark != null">remark,</if>
+            <if test="createDate != null">create_date,</if>
+            <if test="updateDate != null">update_date,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="name != null">#{name},</if>
@@ -77,6 +84,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updater != null">#{updater},</if>
             <if test="updateTime != null">#{updateTime},</if>
             <if test="remark != null">#{remark},</if>
+            <if test="createDate != null">#{createDate},</if>
+            <if test="updateDate != null">#{updateDate},</if>
          </trim>
     </insert>
 
@@ -96,6 +105,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updater != null">updater = #{updater},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
             <if test="remark != null">remark = #{remark},</if>
+            <if test="createDate != null">create_date = #{createDate},</if>
+            <if test="updateDate != null">update_date = #{updateDate},</if>
         </trim>
         where id = #{id}
     </update>

@@ -8,10 +8,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="id"    column="id"    />
         <result property="bookmarkId"    column="bookmark_id"    />
         <result property="tagId"    column="tag_id"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="createDate"    column="create_date"    />
+        <result property="updateDate"    column="update_date"    />
+        <result property="remark"    column="remark"    />
     </resultMap>
 
     <sql id="selectCcwBookmarkTagVo">
-        select id, bookmark_id, tag_id from ccw_bookmark_tag
+        select id, bookmark_id, tag_id, create_time, update_time, create_date, update_date, remark from ccw_bookmark_tag
     </sql>
 
     <select id="selectCcwBookmarkTagList" parameterType="CcwBookmarkTag" resultMap="CcwBookmarkTagResult">
@@ -19,6 +24,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <where>  
             <if test="bookmarkId != null "> and bookmark_id = #{bookmarkId}</if>
             <if test="tagId != null "> and tag_id = #{tagId}</if>
+            <if test="createDate != null "> and create_date = #{createDate}</if>
+            <if test="updateDate != null "> and update_date = #{updateDate}</if>
         </where>
     </select>
     
@@ -33,11 +40,21 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="id != null">id,</if>
             <if test="bookmarkId != null">bookmark_id,</if>
             <if test="tagId != null">tag_id,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="createDate != null">create_date,</if>
+            <if test="updateDate != null">update_date,</if>
+            <if test="remark != null">remark,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="id != null">#{id},</if>
             <if test="bookmarkId != null">#{bookmarkId},</if>
             <if test="tagId != null">#{tagId},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="createDate != null">#{createDate},</if>
+            <if test="updateDate != null">#{updateDate},</if>
+            <if test="remark != null">#{remark},</if>
          </trim>
     </insert>
 
@@ -46,6 +63,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <trim prefix="SET" suffixOverrides=",">
             <if test="bookmarkId != null">bookmark_id = #{bookmarkId},</if>
             <if test="tagId != null">tag_id = #{tagId},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="createDate != null">create_date = #{createDate},</if>
+            <if test="updateDate != null">update_date = #{updateDate},</if>
+            <if test="remark != null">remark = #{remark},</if>
         </trim>
         where id = #{id}
     </update>
