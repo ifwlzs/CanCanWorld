@@ -1,6 +1,8 @@
 package com.ruoyi;
 
 import cn.hutool.core.thread.ThreadUtil;
+import cn.hutool.http.HttpRequest;
+import cn.hutool.http.HttpResponse;
 import com.ruoyi.ccw.utils.HttpUtils;
 
 import java.util.ArrayList;
@@ -22,30 +24,45 @@ public class ThreadDemo {
         webInfoList.add(new WebInfo("https://cdn.jsdelivr.net/"));
         webInfoList.add(new WebInfo("http://cdn.jsdelivr.net"));
         webInfoList.add(new WebInfo("http://cdn.jsdelivr.net/gh/ifwlzs/YueDuBackup@master/R18/R18BookSource.json"));
-
-      for (int i = 0; i < webInfoList.size(); i++) {
+        List<WebInfo> webInfoList1 = new ArrayList<>();
+        for (int i = 0; i < webInfoList.size(); i++) {
             int t = i;
             executor.execute(() -> {
                 //业务处理
-                HttpUtils httpUtils=new HttpUtils();
-                boolean success = httpUtils.networkCheck(webInfoList.get(t).getUrl());
-                webInfoList.get(t).setStatus(success);
+                HttpUtils httpUtils = new HttpUtils();
+                String url = webInfoList.get(t).getUrl();
+                boolean success = httpUtils.networkCheck(url);
+                int code = 404;
+                if (success) {
+                    code = HttpRequest.post(url).execute().getStatus();
+                }
+                WebInfo webInfo = new WebInfo(webInfoList.get(t).getUrl(), success, code);
+                webInfoList1.add(webInfo);
                 System.out.println(success);
             });
-      }
+        }
 
-        ThreadUtil.sleep(20000);
+        ThreadUtil.sleep(200);
         executor.shutdown();
 
-        webInfoList.stream().forEach(System.out::println);
+        webInfoList1.stream().forEach(System.out::println);
     }
 }
+
 class WebInfo {
     private String url;
     private Boolean status = false;
 
+    private int code = 404;
+
     public WebInfo(String url) {
         this.url = url;
+    }
+
+    public WebInfo(String url, Boolean status, int code) {
+        this.url = url;
+        this.status = status;
+        this.code = code;
     }
 
     public String getUrl() {
@@ -60,6 +77,10 @@ class WebInfo {
         return status;
     }
 
+    public int getCode() {
+        return code;
+    }
+
     public void setStatus(Boolean status) {
         this.status = status;
     }
@@ -69,6 +90,7 @@ class WebInfo {
         return "WebInfo{" +
                 "url='" + url + '\'' +
                 ", status=" + status +
+                ", code=" + code +
                 '}';
     }
 }

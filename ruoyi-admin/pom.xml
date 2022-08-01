@@ -91,11 +91,10 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>test</scope>
+            <groupId>com.github.liuyueyi</groupId>
+            <artifactId>quick-transfer-core</artifactId>
+            <version>0.2.5</version>
         </dependency>
-
     </dependencies>
 
     <build>

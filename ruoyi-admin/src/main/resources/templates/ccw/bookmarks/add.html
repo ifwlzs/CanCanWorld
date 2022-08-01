@@ -3,10 +3,10 @@
 <head>
     <th:block th:include="include :: header('新增书签')"/>
     <th:block th:include="include :: datetimepicker-css"/>
-<!--    <script type="text/javascript" th:src="@{/js/vue.js}"></script>-->
-<!--    <script type="text/javascript" th:src="@{/js/axios.min.js}"></script>-->
-<!--    <script type="text/javascript" th:src="@{/js/element-ui.js}"></script>-->
-<!--    <link th:href="@{/css/element-ui.css}" rel="stylesheet" type="text/css"/>-->
+    <!--    <script type="text/javascript" th:src="@{/js/vue.js}"></script>-->
+    <!--    <script type="text/javascript" th:src="@{/js/axios.min.js}"></script>-->
+    <!--    <script type="text/javascript" th:src="@{/js/element-ui.js}"></script>-->
+    <!--    <link th:href="@{/css/element-ui.css}" rel="stylesheet" type="text/css"/>-->
     <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <script src="https://cdn.bootcss.com/qs/6.7.0/qs.min.js"></script>
@@ -73,13 +73,9 @@
                 <div class="form-group">
                     <label class="col-sm-3 control-label">下拉树：</label>
                     <div class="col-sm-9">
-                        <el-tree
-                                :props="props"
-                                :load="loadNode"
-                                lazy
-                                show-checkbox
-                                @check-change="handleCheckChange">
-                        </el-tree>
+                        <el-form-item label="父类">
+                            <el-tree-select v-model="form.parentId" :data="categoryData" />
+                        </el-form-item>
                     </div>
                 </div>
             </div>
@@ -125,71 +121,121 @@
     });
 </script>
 <!--todo 获取后端传回来的tag树形列表-->
+
 <script th:inline="javascript">
+    var _treeNode={
+        nodeId:0,
+        categoryName:"",
+        parentId:0
+    }
 
-    var Main = {
-        data() {
-            return {
-                props: {
-                    label: 'name',
-                    children: 'zones'
-                },
-                count: 1
-            };
-        },
-        created() {
-            this.getTagTree();
-        },
-        methods: {
-            getTagTree() {
-                this.$api.get(ctx + "ccw/tag/tree").then(res => {
-                    if (res.data) {
-                        console.log("=========")
-                        console.log(data)
-                        console.log("=========")
-                    }
-                })
+    var app = new Vue({
+        el:'#app',
+        data:{
+            treeNode:_treeNode,
+            treeList:[],
+            treeListData:[], // 无层级结构节点数据
+            defaultProps:{
+                children: 'childList',
+                label: 'name'
+                /* label: 'categoryName'*/
             },
-            handleCheckChange(data, checked, indeterminate) {
-                console.log(data, checked, indeterminate);
-            },
-            handleNodeClick(data) {
-                console.log(data);
-            },
-            loadNode(node, resolve) {
-                if (node.level === 0) {
-                    return resolve([{name: 'region1'}, {name: 'region2'}]);
-                }
-                if (node.level > 3) return resolve([]);
-
-                var hasChild;
-                if (node.data.name === 'region1') {
-                    hasChild = true;
-                } else if (node.data.name === 'region2') {
-                    hasChild = false;
-                } else {
-                    hasChild = Math.random() > 0.5;
-                }
-
-                setTimeout(() => {
-                    var data;
-                    if (hasChild) {
-                        data = [{
-                            name: 'zone' + this.count++
-                        }, {
-                            name: 'zone' + this.count++
-                        }];
-                    } else {
-                        data = [];
-                    }
-
-                    resolve(data);
-                }, 500);
+            dialogVisible:false, // 对话框，默认不打开
+            api:{
+                treeDataList:"/ccw/tag/list",  // 得到节点数据，无层级结构 GET
+                saveTreeNode:"/category/saveTreeNode.do",  // 得到节点数据，无层级结构 GET
+                deleteTreeNode:"/category/deleTreeNode.do",
             }
         },
-    };
-    var Ctor = Vue.extend(Main)
-    new Ctor().$mount('#app')
+        methods: {
+            cateListFunction: function () {
+                $.ajax({
+                    type: "get",
+                    url: "/category/cateList.do",
+                    success: function (result) {
+                        app.cateList = result;
+                        app.treeList=result;
+                    }, error: function (result) {
+                    }
+                });
+            },
+            // 点击节点名称触发的事件
+            handleNodeClick: function (data) {
+                alert(data.id);
+                console.log(data);
+            },
+            // 获得选中的节点的key
+            checkedKeys:function (data) {
+                alert(JSON.stringify(this.$refs.tree.getCheckedKeys()));
+            },
+            // 添加节点查询所有节点的方法
+            addNode:function () {
+                // 查询所有节点数据无层级结构
+                app.getTreeNode();
+                app.dialogVisible=true;
+            },
+            // 保存节点
+            saveNode:function () {
+                //alert(app.treeNode.categoryName+app.treeNode.parentId);
+                axios.post(app.api.saveTreeNode,app.treeNode).then(function (resule) {
+                    app.dialogVisible=false;
+                    app.treeNode.parentId=0;
+                    app.treeNode.categoryName="";
+                    app.cateListFunction();
+                });
+
+            },
+            cancleSaveNode:function () {
+                app.dialogVisible=false;
+                app.treeNode.parentId=0;
+                app.treeNode.categoryName="";
+
+            },
+            // 下拉框选中事件
+            selectChange:function (val) {
+                // select控件的option绑定的值为节点的id,我们将值绑定在要添加的元素的父id
+                //alert("得到节点类型"+val);
+            },
+            // 批量删除节点（若有子节点则不予删除）
+            deleteNode:function () {
+                app.getTreeNode();
+                var str=[];
+                str =this.$refs.tree.getCheckedKeys();
+                if(str.length<=0){ // 因为vue返回的是选中的key的数组
+                    // ，如果没有选择任何元素返回 "[]",这是两个元素，所以我们判断长度为2时，为空
+                    app.$message.error("请至少选择一个节点");
+                    return ;
+                }
+                for(var i in str){
+                    for(var j in app.treeListData){
+                        if(app.treeListData[j].parentId == str[i]){
+                            app.$message.error("父节点不可被删除");
+                            return;
+                        }
+                    }
+                }
+                axios.post(this.api.deleteTreeNode,str).then(function (result) {
+                    app.$message({message: '删除成功', type: 'success'});
+                    app.getTreeNode();
+                    app.cateListFunction();
+                });
+
+            },getTreeNode:function () {
+                // 查询所有节点数据无层级结构
+                axios.get(this.api.treeDataList)
+                    .then(
+                        function(result){
+                            // vue给我们封装的得，我们所得到的数据在返回的对象的data属性里
+                            app.treeListData=result.data;
+                        });
+            }
+
+        },
+        created: function () {
+            this.getTreeNode();
+            this.cateListFunction();
+        }
+    });
 </script>
 </body>
 </html>
