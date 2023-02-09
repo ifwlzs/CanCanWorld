@@ -1,241 +1,159 @@
 <!DOCTYPE html>
-<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" >
 <head>
-    <th:block th:include="include :: header('新增书签')"/>
-    <th:block th:include="include :: datetimepicker-css"/>
-    <!--    <script type="text/javascript" th:src="@{/js/vue.js}"></script>-->
-    <!--    <script type="text/javascript" th:src="@{/js/axios.min.js}"></script>-->
-    <!--    <script type="text/javascript" th:src="@{/js/element-ui.js}"></script>-->
-    <!--    <link th:href="@{/css/element-ui.css}" rel="stylesheet" type="text/css"/>-->
-    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <script src="https://cdn.bootcss.com/qs/6.7.0/qs.min.js"></script>
-    <!-- 引入样式 -->
-    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
-    <!-- 引入组件库 -->
-    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <th:block th:include="include :: header('新增书签')" />
+    <th:block th:include="include :: datetimepicker-css" />
 </head>
 <body class="white-bg">
-<div class="wrapper wrapper-content animated fadeInRight ibox-content">
-    <form class="form-horizontal m" id="form-bookmarks-add">
-        <div class="col-md-6">
-            <div class="form-group">
+    <div class="wrapper wrapper-content animated fadeInRight ibox-content">
+        <form class="form-horizontal m" id="form-bookmarks-add">
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">用户id：</label>
+                <div class="col-sm-8">
+                    <input name="uid" class="form-control" type="text">
+                </div>
+            </div>
+            <div class="form-group">    
                 <label class="col-sm-3 control-label">网站名：</label>
-                <div class="col-sm-9">
-                    <input type="text" name="" class="form-control" placeholder="请输入网站名">
+                <div class="col-sm-8">
+                    <input name="name" class="form-control" type="text">
                 </div>
             </div>
-            <div class="form-group">
-                <label class="col-sm-3 control-label">网站图标：</label>
-                <div class="col-sm-9">
-                    <input type="text" name="" class="form-control" placeholder="请输入网站图标">
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="col-sm-3 control-label">网址：</label>
-                <div class="col-sm-9">
-                    <input type="text" name="" class="form-control" placeholder="请输入网址">
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="col-sm-3 control-label">排序因子：</label>
-                <div class="col-sm-9">
-                    <input type="text" name="" class="form-control" placeholder="请输入文本">
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="form-group">
+            <div class="form-group">    
                 <label class="col-sm-3 control-label">简介：</label>
-                <div class="col-sm-9">
-                    <input type="text" name="" class="form-control" placeholder="请输入简介">
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="col-sm-3 control-label">网站标签：</label>
-                <div class="col-sm-9">
-                    <select class="form-control" name=""></select>
+                <div class="col-sm-8">
+                    <input name="info" class="form-control" type="text">
                 </div>
             </div>
             <div class="form-group">
                 <label class="col-sm-3 control-label">详细描述：</label>
-                <div class="col-sm-9">
-                    <textarea type="text" name="" class="form-control" placeholder="请输入详细描述"></textarea>
+                <div class="col-sm-8">
+                    <textarea name="description" class="form-control"></textarea>
+                </div>
+            </div>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">网址：</label>
+                <div class="col-sm-8">
+                    <input name="url" class="form-control" type="text">
+                </div>
+            </div>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">网站icon：</label>
+                <div class="col-sm-8">
+                    <input name="icon" class="form-control" type="text">
+                </div>
+            </div>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">网页状态码：</label>
+                <div class="col-sm-8">
+                    <input name="statusCode" class="form-control" type="text">
+                </div>
+            </div>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label is-required">删除状态，0->未删除，1->已删除：</label>
+                <div class="col-sm-8">
+                    <input name="deleted" class="form-control" type="text" required>
+                </div>
+            </div>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">排序因子：</label>
+                <div class="col-sm-8">
+                    <input name="sort" class="form-control" type="text">
+                </div>
+            </div>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">创建人uid：</label>
+                <div class="col-sm-8">
+                    <input name="creator" class="form-control" type="text">
+                </div>
+            </div>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">更新人uid：</label>
+                <div class="col-sm-8">
+                    <input name="updater" class="form-control" type="text">
                 </div>
             </div>
             <div class="form-group">
                 <label class="col-sm-3 control-label">备注：</label>
-                <div class="col-sm-9">
-                    <textarea type="text" name="" class="form-control" placeholder="请输入备注"></textarea>
+                <div class="col-sm-8">
+                    <textarea name="remark" class="form-control"></textarea>
                 </div>
             </div>
-            <div id="app">
-                <div class="form-group">
-                    <label class="col-sm-3 control-label">下拉树：</label>
-                    <div class="col-sm-9">
-                        <el-form-item label="父类">
-                            <el-tree-select v-model="form.parentId" :data="categoryData" />
-                        </el-form-item>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">检测时间：</label>
+                <div class="col-sm-8">
+                    <div class="input-group date">
+                        <input name="detectionTime" class="form-control" placeholder="yyyy-MM-dd" type="text">
+                        <span class="input-group-addon"><i class="fa fa-calendar"></i></span>
                     </div>
                 </div>
             </div>
-        </div>
-    </form>
-</div>
-<th:block th:include="include :: footer"/>
-<th:block th:include="include :: datetimepicker-js"/>
-<script th:inline="javascript">
-    var prefix = ctx + "ccw/bookmarks"
-    $("#form-bookmarks-add").validate({
-        focusCleanup: true
-    });
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">创建日：</label>
+                <div class="col-sm-8">
+                    <div class="input-group date">
+                        <input name="createDate" class="form-control" placeholder="yyyy-MM-dd" type="text">
+                        <span class="input-group-addon"><i class="fa fa-calendar"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">更新日：</label>
+                <div class="col-sm-8">
+                    <div class="input-group date">
+                        <input name="updateDate" class="form-control" placeholder="yyyy-MM-dd" type="text">
+                        <span class="input-group-addon"><i class="fa fa-calendar"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">    
+                <label class="col-sm-3 control-label">检测日：</label>
+                <div class="col-sm-8">
+                    <div class="input-group date">
+                        <input name="detectionDate" class="form-control" placeholder="yyyy-MM-dd" type="text">
+                        <span class="input-group-addon"><i class="fa fa-calendar"></i></span>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+    <th:block th:include="include :: footer" />
+    <th:block th:include="include :: datetimepicker-js" />
+    <script th:inline="javascript">
+        var prefix = ctx + "ccw/bookmarks"
+        $("#form-bookmarks-add").validate({
+            focusCleanup: true
+        });
 
-    function submitHandler() {
-        if ($.validate.form()) {
-            $.operate.save(prefix + "/add", $('#form-bookmarks-add').serialize());
-        }
-    }
-
-    $("input[name='detectionTime']").datetimepicker({
-        format: "yyyy-mm-dd",
-        minView: "month",
-        autoclose: true
-    });
-
-    $("input[name='createDate']").datetimepicker({
-        format: "yyyy-mm-dd",
-        minView: "month",
-        autoclose: true
-    });
-
-    $("input[name='updateDate']").datetimepicker({
-        format: "yyyy-mm-dd",
-        minView: "month",
-        autoclose: true
-    });
-
-    $("input[name='detectionDate']").datetimepicker({
-        format: "yyyy-mm-dd",
-        minView: "month",
-        autoclose: true
-    });
-</script>
-<!--todo 获取后端传回来的tag树形列表-->
-
-<script th:inline="javascript">
-    var _treeNode={
-        nodeId:0,
-        categoryName:"",
-        parentId:0
-    }
-
-    var app = new Vue({
-        el:'#app',
-        data:{
-            treeNode:_treeNode,
-            treeList:[],
-            treeListData:[], // 无层级结构节点数据
-            defaultProps:{
-                children: 'childList',
-                label: 'name'
-                /* label: 'categoryName'*/
-            },
-            dialogVisible:false, // 对话框，默认不打开
-            api:{
-                treeDataList:"/ccw/tag/list",  // 得到节点数据，无层级结构 GET
-                saveTreeNode:"/category/saveTreeNode.do",  // 得到节点数据，无层级结构 GET
-                deleteTreeNode:"/category/deleTreeNode.do",
+        function submitHandler() {
+            if ($.validate.form()) {
+                $.operate.save(prefix + "/add", $('#form-bookmarks-add').serialize());
             }
-        },
-        methods: {
-            cateListFunction: function () {
-                $.ajax({
-                    type: "get",
-                    url: "/category/cateList.do",
-                    success: function (result) {
-                        app.cateList = result;
-                        app.treeList=result;
-                    }, error: function (result) {
-                    }
-                });
-            },
-            // 点击节点名称触发的事件
-            handleNodeClick: function (data) {
-                alert(data.id);
-                console.log(data);
-            },
-            // 获得选中的节点的key
-            checkedKeys:function (data) {
-                alert(JSON.stringify(this.$refs.tree.getCheckedKeys()));
-            },
-            // 添加节点查询所有节点的方法
-            addNode:function () {
-                // 查询所有节点数据无层级结构
-                app.getTreeNode();
-                app.dialogVisible=true;
-            },
-            // 保存节点
-            saveNode:function () {
-                //alert(app.treeNode.categoryName+app.treeNode.parentId);
-                axios.post(app.api.saveTreeNode,app.treeNode).then(function (resule) {
-                    app.dialogVisible=false;
-                    app.treeNode.parentId=0;
-                    app.treeNode.categoryName="";
-                    app.cateListFunction();
-                });
-
-            },
-            cancleSaveNode:function () {
-                app.dialogVisible=false;
-                app.treeNode.parentId=0;
-                app.treeNode.categoryName="";
-
-            },
-            // 下拉框选中事件
-            selectChange:function (val) {
-                // select控件的option绑定的值为节点的id,我们将值绑定在要添加的元素的父id
-                //alert("得到节点类型"+val);
-            },
-            // 批量删除节点（若有子节点则不予删除）
-            deleteNode:function () {
-                app.getTreeNode();
-                var str=[];
-                str =this.$refs.tree.getCheckedKeys();
-                if(str.length<=0){ // 因为vue返回的是选中的key的数组
-                    // ，如果没有选择任何元素返回 "[]",这是两个元素，所以我们判断长度为2时，为空
-                    app.$message.error("请至少选择一个节点");
-                    return ;
-                }
-                for(var i in str){
-                    for(var j in app.treeListData){
-                        if(app.treeListData[j].parentId == str[i]){
-                            app.$message.error("父节点不可被删除");
-                            return;
-                        }
-                    }
-                }
-                axios.post(this.api.deleteTreeNode,str).then(function (result) {
-                    app.$message({message: '删除成功', type: 'success'});
-                    app.getTreeNode();
-                    app.cateListFunction();
-                });
-
-            },getTreeNode:function () {
-                // 查询所有节点数据无层级结构
-                axios.get(this.api.treeDataList)
-                    .then(
-                        function(result){
-                            // vue给我们封装的得，我们所得到的数据在返回的对象的data属性里
-                            app.treeListData=result.data;
-                        });
-            }
-
-        },
-        created: function () {
-            this.getTreeNode();
-            this.cateListFunction();
         }
-    });
-</script>
+
+        $("input[name='detectionTime']").datetimepicker({
+            format: "yyyy-mm-dd",
+            minView: "month",
+            autoclose: true
+        });
+
+        $("input[name='createDate']").datetimepicker({
+            format: "yyyy-mm-dd",
+            minView: "month",
+            autoclose: true
+        });
+
+        $("input[name='updateDate']").datetimepicker({
+            format: "yyyy-mm-dd",
+            minView: "month",
+            autoclose: true
+        });
+
+        $("input[name='detectionDate']").datetimepicker({
+            format: "yyyy-mm-dd",
+            minView: "month",
+            autoclose: true
+        });
+    </script>
 </body>
 </html>
