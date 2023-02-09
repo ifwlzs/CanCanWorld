@@ -8,13 +8,12 @@ import com.ruoyi.ccw.mapper.CcwBookmarksMapper;
 import com.ruoyi.ccw.domain.CcwBookmarks;
 import com.ruoyi.ccw.service.ICcwBookmarksService;
 import com.ruoyi.common.core.text.Convert;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 书签Service业务层处理
  * 
  * @author ifwlzs
- * @date 2022-07-31
+ * @date 2023-02-09
  */
 @Service
 public class CcwBookmarksServiceImpl implements ICcwBookmarksService 
@@ -53,7 +52,6 @@ public class CcwBookmarksServiceImpl implements ICcwBookmarksService
      * @return 结果
      */
     @Override
-    @Transactional
     public int insertCcwBookmarks(CcwBookmarks ccwBookmarks)
     {
         ccwBookmarks.setCreateTime(DateUtils.getNowDate());
@@ -67,7 +65,6 @@ public class CcwBookmarksServiceImpl implements ICcwBookmarksService
      * @return 结果
      */
     @Override
-    @Transactional
     public int updateCcwBookmarks(CcwBookmarks ccwBookmarks)
     {
         ccwBookmarks.setUpdateTime(DateUtils.getNowDate());
@@ -81,7 +78,6 @@ public class CcwBookmarksServiceImpl implements ICcwBookmarksService
      * @return 结果
      */
     @Override
-    @Transactional
     public int deleteCcwBookmarksByIds(String ids)
     {
         return ccwBookmarksMapper.deleteCcwBookmarksByIds(Convert.toStrArray(ids));
@@ -94,7 +90,6 @@ public class CcwBookmarksServiceImpl implements ICcwBookmarksService
      * @return 结果
      */
     @Override
-    @Transactional
     public int deleteCcwBookmarksById(Long id)
     {
         return ccwBookmarksMapper.deleteCcwBookmarksById(id);

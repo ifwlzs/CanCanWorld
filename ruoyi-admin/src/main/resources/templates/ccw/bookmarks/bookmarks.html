@@ -35,7 +35,7 @@
                                 <input type="text" name="statusCode"/>
                             </li>
                             <li>
-                                <label>删除状态：</label>
+                                <label>删除状态，0->未删除，1->已删除：</label>
                                 <input type="text" name="deleted"/>
                             </li>
                             <li>
@@ -98,7 +98,10 @@
     <script th:inline="javascript">
         var editFlag = [[${@permission.hasPermi('ccw:bookmarks:edit')}]];
         var removeFlag = [[${@permission.hasPermi('ccw:bookmarks:remove')}]];
+        var idDatas = [[${@dict.getType('${column.dictType}')}]];
         var deletedDatas = [[${@dict.getType('sys_delete_status')}]];
+        var createTimeDatas = [[${@dict.getType('${column.dictType}')}]];
+        var updateTimeDatas = [[${@dict.getType('${column.dictType}')}]];
         var prefix = ctx + "ccw/bookmarks";
 
         $(function() {
@@ -142,12 +145,16 @@
                     title: '网站icon'
                 },
                 {
+                    field: 'pingStatus',
+                    title: 'ping状态'
+                },
+                {
                     field: 'statusCode',
                     title: '网页状态码'
                 },
                 {
                     field: 'deleted',
-                    title: '删除状态',
+                    title: '删除状态，0->未删除，1->已删除',
                     formatter: function(value, row, index) {
                        return $.table.selectDictLabel(deletedDatas, value);
                     }
