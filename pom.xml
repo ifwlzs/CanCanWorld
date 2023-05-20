@@ -24,7 +24,7 @@
         <kaptcha.version>2.3.2</kaptcha.version>
         <swagger.version>3.0.0</swagger.version>
         <mybatis-spring-boot.version>2.2.2</mybatis-spring-boot.version>
-        <pagehelper.boot.version>1.4.1</pagehelper.boot.version>
+        <pagehelper.boot.version>1.4.6</pagehelper.boot.version>
         <fastjson.version>1.2.83</fastjson.version>
         <oshi.version>6.1.6</oshi.version>
         <commons.io.version>2.11.0</commons.io.version>
@@ -32,6 +32,7 @@
         <poi.version>4.1.2</poi.version>
         <velocity.version>2.3</velocity.version>
         <hutool.version>5.8.4</hutool.version>
+        <mybatis-plus.version>3.5.2</mybatis-plus.version>
     </properties>
 
     <!-- 依赖声明 -->
@@ -97,12 +98,31 @@
             </dependency>
 
             <!-- SpringBoot集成mybatis框架 -->
+<!--            <dependency>-->
+<!--                <groupId>org.mybatis.spring.boot</groupId>-->
+<!--                <artifactId>mybatis-spring-boot-starter</artifactId>-->
+<!--                <version>${mybatis-spring-boot.version}</version>-->
+<!--            </dependency>-->
+
+            <!-- 集成mybatis-plus框架 -->
             <dependency>
-                <groupId>org.mybatis.spring.boot</groupId>
-                <artifactId>mybatis-spring-boot-starter</artifactId>
-                <version>${mybatis-spring-boot.version}</version>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-boot-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-extension</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <!-- pagehelper 分页插件 -->
+            <dependency>
+                <groupId>com.github.pagehelper</groupId>
+                <artifactId>pagehelper-spring-boot-starter</artifactId>
+                <version>${pagehelper.boot.version}</version>
+            </dependency>
             <!-- pagehelper 分页插件 -->
             <dependency>
                 <groupId>com.github.pagehelper</groupId>
