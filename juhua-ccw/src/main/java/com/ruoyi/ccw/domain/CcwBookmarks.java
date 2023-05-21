@@ -1,6 +1,10 @@
 package com.ruoyi.ccw.domain;
 
 import java.util.Date;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -19,11 +23,12 @@ import com.ruoyi.common.core.domain.BaseEntity;
 @AllArgsConstructor
 @ToString
 @Builder
-public class CcwBookmarks extends BaseEntity
+public class CcwBookmarks
 {
     private static final long serialVersionUID = 1L;
 
     /** 书签表id */
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
     /** 用户id */
@@ -59,6 +64,7 @@ public class CcwBookmarks extends BaseEntity
     private Long statusCode;
 
     /** 删除状态，0->未删除，1->已删除 */
+    @TableLogic(value = "0", delval = "1")
     @Excel(name = "删除状态，0->未删除，1->已删除")
     private Integer deleted;
 
@@ -93,6 +99,12 @@ public class CcwBookmarks extends BaseEntity
     @JsonFormat(pattern = "yyyy-MM-dd")
     @Excel(name = "检测日", width = 30, dateFormat = "yyyy-MM-dd")
     private Date detectionDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date updateTime;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date createTime;
 
     public void setId(Long id) 
     {
@@ -248,29 +260,4 @@ public class CcwBookmarks extends BaseEntity
         return detectionDate;
     }
 
-    @Override
-    public String toString() {
-        return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
-            .append("id", getId())
-            .append("uid", getUid())
-            .append("name", getName())
-            .append("info", getInfo())
-            .append("description", getDescription())
-            .append("url", getUrl())
-            .append("icon", getIcon())
-            .append("pingStatus", getPingStatus())
-            .append("statusCode", getStatusCode())
-            .append("deleted", getDeleted())
-            .append("sort", getSort())
-            .append("creator", getCreator())
-            .append("createTime", getCreateTime())
-            .append("updater", getUpdater())
-            .append("updateTime", getUpdateTime())
-            .append("remark", getRemark())
-            .append("detectionTime", getDetectionTime())
-            .append("createDate", getCreateDate())
-            .append("updateDate", getUpdateDate())
-            .append("detectionDate", getDetectionDate())
-            .toString();
-    }
 }

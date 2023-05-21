@@ -1,6 +1,8 @@
 package com.ruoyi.ccw.service.impl;
 
 import java.util.List;
+
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ruoyi.common.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
  * @date 2022-07-31
  */
 @Service
-public class CcwSearchEngineServiceImpl implements ICcwSearchEngineService 
+public class CcwSearchEngineServiceImpl extends ServiceImpl<CcwSearchEngineMapper, CcwSearchEngine> implements ICcwSearchEngineService
 {
     @Autowired
     private CcwSearchEngineMapper ccwSearchEngineMapper;

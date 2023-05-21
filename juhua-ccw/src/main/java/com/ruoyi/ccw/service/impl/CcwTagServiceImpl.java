@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 import cn.hutool.core.lang.tree.Tree;
 import cn.hutool.core.lang.tree.TreeNodeConfig;
 import cn.hutool.core.lang.tree.TreeUtil;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ruoyi.ccw.dto.CcwTagTreeDTO;
 import com.ruoyi.common.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  * @date 2022-07-31
  */
 @Service
-public class CcwTagServiceImpl implements ICcwTagService {
+public class CcwTagServiceImpl extends ServiceImpl<CcwTagMapper, CcwTag> implements ICcwTagService {
     @Autowired
     private CcwTagMapper ccwTagMapper;
 

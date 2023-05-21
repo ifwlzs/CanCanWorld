@@ -3,6 +3,7 @@ package com.ruoyi.ccw.service;
 import java.util.List;
 
 import cn.hutool.core.lang.tree.Tree;
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.ruoyi.ccw.domain.CcwTag;
 import com.ruoyi.ccw.dto.CcwTagTreeDTO;
 
@@ -12,7 +13,7 @@ import com.ruoyi.ccw.dto.CcwTagTreeDTO;
  * @author ifwlzs
  * @date 2022-07-31
  */
-public interface ICcwTagService 
+public interface ICcwTagService extends IService<CcwTag>
 {
     /**
      * 查询书签标签

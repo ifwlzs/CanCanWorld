@@ -1,7 +1,10 @@
 package com.ruoyi.ccw.service;
 
 import java.util.List;
+
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.ruoyi.ccw.domain.CcwBookmarks;
+import com.ruoyi.common.core.domain.AjaxResult;
 
 /**
  * 书签Service接口
@@ -9,7 +12,7 @@ import com.ruoyi.ccw.domain.CcwBookmarks;
  * @author ifwlzs
  * @date 2023-02-09
  */
-public interface ICcwBookmarksService 
+public interface ICcwBookmarksService extends IService<CcwBookmarks>
 {
     /**
      * 查询书签
@@ -58,4 +61,10 @@ public interface ICcwBookmarksService
      * @return 结果
      */
     public int deleteCcwBookmarksById(Long id);
+
+    /**
+     * 确认存活
+     * @return
+     */
+    AjaxResult checkAlive();
 }
