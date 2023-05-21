@@ -1,6 +1,8 @@
 package com.ruoyi.ccw.service;
 
 import java.util.List;
+
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.ruoyi.ccw.domain.CcwBookmarkTag;
 
 /**
@@ -9,7 +11,7 @@ import com.ruoyi.ccw.domain.CcwBookmarkTag;
  * @author ifwlzs
  * @date 2022-07-31
  */
-public interface ICcwBookmarkTagService 
+public interface ICcwBookmarkTagService extends IService<CcwBookmarkTag>
 {
     /**
      * 查询书签-tag关联

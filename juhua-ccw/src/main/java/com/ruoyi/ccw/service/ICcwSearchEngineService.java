@@ -1,6 +1,8 @@
 package com.ruoyi.ccw.service;
 
 import java.util.List;
+
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.ruoyi.ccw.domain.CcwSearchEngine;
 
 /**
@@ -9,7 +11,7 @@ import com.ruoyi.ccw.domain.CcwSearchEngine;
  * @author ifwlzs
  * @date 2022-07-31
  */
-public interface ICcwSearchEngineService 
+public interface ICcwSearchEngineService extends IService<CcwSearchEngine>
 {
     /**
      * 查询搜索引擎
