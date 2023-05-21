@@ -1,7 +1,10 @@
 package com.ruoyi.ccw.mapper;
 
 import java.util.List;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.ruoyi.ccw.domain.CcwSearchEngine;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
  * 搜索引擎Mapper接口
@@ -9,7 +12,8 @@ import com.ruoyi.ccw.domain.CcwSearchEngine;
  * @author ifwlzs
  * @date 2022-07-31
  */
-public interface CcwSearchEngineMapper 
+@Mapper
+public interface CcwSearchEngineMapper extends BaseMapper<CcwSearchEngine>
 {
     /**
      * 查询搜索引擎

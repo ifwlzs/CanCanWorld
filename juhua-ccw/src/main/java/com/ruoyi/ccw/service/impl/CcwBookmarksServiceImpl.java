@@ -1,7 +1,19 @@
 package com.ruoyi.ccw.service.impl;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
+
+import cn.hutool.core.util.ObjectUtil;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.ruoyi.ccw.utils.HttpUtils;
+import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.common.utils.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.ccw.mapper.CcwBookmarksMapper;
@@ -16,7 +28,7 @@ import com.ruoyi.common.core.text.Convert;
  * @date 2023-02-09
  */
 @Service
-public class CcwBookmarksServiceImpl implements ICcwBookmarksService 
+public class CcwBookmarksServiceImpl extends ServiceImpl<CcwBookmarksMapper, CcwBookmarks> implements ICcwBookmarksService
 {
     @Autowired
     private CcwBookmarksMapper ccwBookmarksMapper;
@@ -93,5 +105,62 @@ public class CcwBookmarksServiceImpl implements ICcwBookmarksService
     public int deleteCcwBookmarksById(Long id)
     {
         return ccwBookmarksMapper.deleteCcwBookmarksById(id);
+    }
+
+    /**
+     * 确认存活
+     * @return
+     */
+    @Override
+    public AjaxResult checkAlive() {
+        // 定义要进行查询的网站
+        List<CcwBookmarks> checkList = new ArrayList<>();
+        // 查询所有的网站
+        List<CcwBookmarks> bookList = list();
+        if (ObjectUtil.isEmpty(bookList)){
+            return AjaxResult.error("没有网站可检测");
+        }
+        // 筛选有url的
+        checkList = bookList.stream().filter(book -> StringUtils.isNotBlank(book.getUrl())).collect(Collectors.toList());
+        checkList = checkUrls(checkList);
+        boolean res = updateBatchById(checkList);
+        return res ? AjaxResult.success("检测成功") : AjaxResult.error("检测失败");
+    }
+
+    /**
+     * 多线程检测存活
+     * @param bookList
+     * @return
+     */
+    public static List<CcwBookmarks> checkUrls(List<CcwBookmarks> bookList) {
+        // 创建一个固定大小的线程池，根据你的硬件和需求调整线程数量
+        int numThreads = 25;
+        ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+
+        // 创建一个Future列表，用于存储每个网址的检测结果
+        List<Future<CcwBookmarks>> futures = new ArrayList<>();
+
+        // 为每个网址创建一个Callable任务，并将其提交给线程池
+        for (CcwBookmarks book : bookList) {
+            Callable<CcwBookmarks> task = () -> HttpUtils.isUrlValid(book);
+            Future<CcwBookmarks> future = executor.submit(task);
+            futures.add(future);
+        }
+
+        // 获取每个网址的检测结果，并将其添加到结果列表中
+        List<CcwBookmarks> results = new ArrayList<>();
+        for (Future<CcwBookmarks> future : futures) {
+            try {
+                results.add(future.get());
+            } catch (Exception e) {
+                // 发生异常，将结果设置为false
+                e.printStackTrace();
+            }
+        }
+
+        // 关闭线程池
+        executor.shutdown();
+
+        return results;
     }
 }

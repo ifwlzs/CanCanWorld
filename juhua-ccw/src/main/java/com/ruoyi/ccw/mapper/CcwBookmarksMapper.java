@@ -1,7 +1,10 @@
 package com.ruoyi.ccw.mapper;
 
 import java.util.List;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.ruoyi.ccw.domain.CcwBookmarks;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
  * 书签Mapper接口
@@ -9,7 +12,8 @@ import com.ruoyi.ccw.domain.CcwBookmarks;
  * @author ifwlzs
  * @date 2023-02-09
  */
-public interface CcwBookmarksMapper 
+@Mapper
+public interface CcwBookmarksMapper extends BaseMapper<CcwBookmarks>
 {
     /**
      * 查询书签

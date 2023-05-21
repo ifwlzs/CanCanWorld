@@ -1,8 +1,11 @@
 package com.ruoyi.ccw.mapper;
 
 import java.util.List;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.ruoyi.ccw.domain.CcwTag;
 import com.ruoyi.ccw.dto.CcwTagTreeDTO;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
  * 书签标签Mapper接口
@@ -10,7 +13,8 @@ import com.ruoyi.ccw.dto.CcwTagTreeDTO;
  * @author ifwlzs
  * @date 2022-07-31
  */
-public interface CcwTagMapper 
+@Mapper
+public interface CcwTagMapper extends BaseMapper<CcwTag>
 {
     /**
      * 查询书签标签
