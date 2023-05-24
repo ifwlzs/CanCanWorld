@@ -2,7 +2,6 @@ package ${packageName}.controller;
 
 import java.util.List;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +21,7 @@ import com.ruoyi.common.core.page.TableDataInfo;
 #elseif($table.tree)
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.core.domain.Ztree;
+import javax.annotation.Resource;
 #end
 
 /**
@@ -36,7 +36,7 @@ public class ${ClassName}Controller extends BaseController
 {
     private String prefix = "${moduleName}/${businessName}";
 
-    @Autowired
+    @Resource
     private I${ClassName}Service ${className}Service;
 
     @RequiresPermissions("${permissionPrefix}:view")
