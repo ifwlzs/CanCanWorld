@@ -1,6 +1,8 @@
 package com.ruoyi.ccw.service.impl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -8,12 +10,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.ruoyi.ccw.bo.CcwBookmardksAddBo;
+import com.ruoyi.ccw.domain.CcwBookmarkTag;
+import com.ruoyi.ccw.service.ICcwBookmarkTagService;
+import com.ruoyi.ccw.service.ICcwTagService;
 import com.ruoyi.ccw.utils.HttpUtils;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
+import org.apache.shiro.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoyi.ccw.mapper.CcwBookmarksMapper;
@@ -32,6 +40,10 @@ public class CcwBookmarksServiceImpl extends ServiceImpl<CcwBookmarksMapper, Ccw
 {
     @Autowired
     private CcwBookmarksMapper ccwBookmarksMapper;
+    @Autowired
+    private ICcwBookmarkTagService bookmarkTagService;
+    @Autowired
+    private ICcwTagService tagService;
 
     /**
      * 查询书签
@@ -125,6 +137,57 @@ public class CcwBookmarksServiceImpl extends ServiceImpl<CcwBookmarksMapper, Ccw
         checkList = checkUrls(checkList);
         boolean res = updateBatchById(checkList);
         return res ? AjaxResult.success("检测成功") : AjaxResult.error("检测失败");
+    }
+
+    /**
+     * 新增书签
+     * @param bo
+     * @return
+     */
+    @Override
+    public AjaxResult addBook(CcwBookmardksAddBo bo) {
+        // 初始化书签信息
+        CcwBookmarks bookmarks = BeanUtil.toBean(bo, CcwBookmarks.class);
+        bookmarks = getBookInit(bookmarks);
+        // 执行书签新增操作
+        boolean bookRes = save(bookmarks);
+        if (!bookRes){
+            return AjaxResult.error("新增失败");
+        }
+        // 提取相关的tagId
+        List<Long> tagIdList = Arrays.asList(bo.getTagIds().split(",")).stream().map(Long::parseLong).distinct().collect(Collectors.toList());
+        List<CcwBookmarkTag> bookmarkTags = new ArrayList<>();
+        for (Long tagId : tagIdList) {
+            CcwBookmarkTag bookmarkTag = new CcwBookmarkTag();
+            bookmarkTag.setTagId(tagId);
+            bookmarkTag.setBookmarkId(bookmarks.getId());
+            bookmarkTags.add(bookmarkTag);
+        }
+        // 执行书签标签页新增
+        if (ObjectUtil.isNotEmpty(bookmarkTags)){
+            boolean bookTagRes = bookmarkTagService.saveBatch(bookmarkTags);
+            if (!bookTagRes){
+                return AjaxResult.error("新增失败");
+            }
+        }
+
+        return AjaxResult.success("新增成功");
+    }
+
+    /**
+     * 初始化书签信息
+     * @param bookmarks
+     * @return
+     */
+    private CcwBookmarks getBookInit(CcwBookmarks bookmarks) {
+        if (ObjectUtil.isNotNull(bookmarks.getId())){
+            bookmarks.setCreateTime(new Date());
+            bookmarks.setCreateDate(new Date());
+            bookmarks.setDeleted(0);
+        }
+        bookmarks.setUpdateTime(new Date());
+        bookmarks.setUpdateDate(new Date());
+        return bookmarks;
     }
 
     /**

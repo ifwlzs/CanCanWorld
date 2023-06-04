@@ -6,6 +6,7 @@ import cn.hutool.core.lang.tree.Tree;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.ruoyi.ccw.domain.CcwTag;
 import com.ruoyi.ccw.dto.CcwTagTreeDTO;
+import com.ruoyi.common.core.domain.AjaxResult;
 
 /**
  * 书签标签Service接口
@@ -69,4 +70,10 @@ public interface ICcwTagService extends IService<CcwTag>
      * @return
      */
     public List<Tree<Long>>  selectCcwTagTree();
+
+    /**
+     * 新获取标签树
+     * @return
+     */
+    AjaxResult getTreeInfo();
 }

@@ -136,5 +136,15 @@ public class CcwTagController extends BaseController {
         return getDataTable(list);
     }
 
+    /**
+     * 新查询书签标签树
+     */
+    @GetMapping("/treeInfo")
+    @ApiOperation("新查询书签标签树")
+    @ResponseBody
+    public AjaxResult treeInfo(){
+        return ccwTagService.getTreeInfo();
+    }
+
 
 }

@@ -3,11 +3,15 @@ package com.ruoyi.ccw.service.impl;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.lang.tree.Tree;
 import cn.hutool.core.lang.tree.TreeNodeConfig;
 import cn.hutool.core.lang.tree.TreeUtil;
+import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ruoyi.ccw.dto.CcwTagTreeDTO;
+import com.ruoyi.ccw.vo.CcwTagTreeVo;
+import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -169,6 +173,26 @@ public class CcwTagServiceImpl extends ServiceImpl<CcwTagMapper, CcwTag> impleme
                     //tree.putExtra("extraField", 666);
                 }));
         return build;
+    }
+
+    /**
+     * 获取新的标签树
+     * @return
+     */
+    @Override
+    public AjaxResult getTreeInfo() {
+        // 查询所有标签
+        List<CcwTag> tags = list();
+        // 构建新的树结构
+        List<CcwTagTreeVo> vos = new ArrayList<>();
+        if (ObjectUtil.isNotEmpty(tags)){
+            for (CcwTag tag : tags) {
+                CcwTagTreeVo vo = BeanUtil.toBean(tag, CcwTagTreeVo.class);
+                vos.add(vo);
+            }
+            vos = CcwTagTreeVo.buildTree(vos);
+        }
+        return AjaxResult.success(vos);
     }
 
 
