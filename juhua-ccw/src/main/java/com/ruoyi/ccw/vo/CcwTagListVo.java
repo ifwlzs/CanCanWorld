@@ -1,28 +1,27 @@
-package com.ruoyi.ccw.domain;
-
-import java.util.Date;
+package com.ruoyi.ccw.vo;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.*;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
 import com.ruoyi.common.annotation.Excel;
 import com.ruoyi.common.core.domain.BaseEntity;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.Date;
 
 /**
- * 书签标签对象 ccw_tag
- * 
- * @author ifwlzs
- * @date 2022-07-31
+ * @ClassName CcwTagListVo
+ * @Description TODO
+ * @Author Dylan
+ * @Date 2023/6/3 17:06
+ * @Version 1.0
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString
-@Builder
-public class CcwTag
+public class CcwTagListVo extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
 
@@ -79,9 +78,5 @@ public class CcwTag
     @JsonFormat(pattern = "yyyy-MM-dd")
     @Excel(name = "更新日", width = 30, dateFormat = "yyyy-MM-dd")
     private Date updateDate;
-
-    private Date createTime;
-
-    private Date updateTime;
 
 }
