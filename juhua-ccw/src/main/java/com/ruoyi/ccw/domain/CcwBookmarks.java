@@ -106,6 +106,8 @@ public class CcwBookmarks
     @JsonFormat(pattern = "yyyy-MM-dd")
     private Date createTime;
 
+    private String remark;
+
     public void setId(Long id) 
     {
         this.id = id;
@@ -260,4 +262,27 @@ public class CcwBookmarks
         return detectionDate;
     }
 
+    public Date getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Date updateTime) {
+        this.updateTime = updateTime;
+    }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
 }
