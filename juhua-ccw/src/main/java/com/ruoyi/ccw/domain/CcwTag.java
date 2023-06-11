@@ -84,4 +84,6 @@ public class CcwTag
 
     private Date updateTime;
 
+    private String remark;
+
 }

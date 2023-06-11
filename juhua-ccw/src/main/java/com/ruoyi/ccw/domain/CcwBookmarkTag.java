@@ -56,4 +56,6 @@ public class CcwBookmarkTag
     @Excel(name = "更新日", width = 30, dateFormat = "yyyy-MM-dd")
     private Date updateTime;
 
+    private String remark;
+
 }
