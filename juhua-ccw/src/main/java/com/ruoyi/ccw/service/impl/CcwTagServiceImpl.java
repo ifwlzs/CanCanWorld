@@ -195,5 +195,21 @@ public class CcwTagServiceImpl extends ServiceImpl<CcwTagMapper, CcwTag> impleme
         return AjaxResult.success(vos);
     }
 
+    @Override
+    public List<CcwTagTreeVo> selectTagTreeList() {
+        // 查询所有标签
+        List<CcwTag> tags = list();
+        // 构建新的树结构
+        List<CcwTagTreeVo> vos = new ArrayList<>();
+        if (ObjectUtil.isNotEmpty(tags)){
+            for (CcwTag tag : tags) {
+                CcwTagTreeVo vo = BeanUtil.toBean(tag, CcwTagTreeVo.class);
+                vos.add(vo);
+            }
+            vos = CcwTagTreeVo.buildTree(vos);
+        }
+        return vos;
+    }
+
 
 }

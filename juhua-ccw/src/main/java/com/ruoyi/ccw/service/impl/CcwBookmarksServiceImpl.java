@@ -28,6 +28,7 @@ import com.ruoyi.ccw.mapper.CcwBookmarksMapper;
 import com.ruoyi.ccw.domain.CcwBookmarks;
 import com.ruoyi.ccw.service.ICcwBookmarksService;
 import com.ruoyi.common.core.text.Convert;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 书签Service业务层处理
@@ -145,6 +146,7 @@ public class CcwBookmarksServiceImpl extends ServiceImpl<CcwBookmarksMapper, Ccw
      * @return
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public AjaxResult addBook(CcwBookmardksAddBo bo) {
         // 初始化书签信息
         CcwBookmarks bookmarks = BeanUtil.toBean(bo, CcwBookmarks.class);

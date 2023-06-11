@@ -6,6 +6,7 @@ import cn.hutool.core.lang.tree.Tree;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.ruoyi.ccw.domain.CcwTag;
 import com.ruoyi.ccw.dto.CcwTagTreeDTO;
+import com.ruoyi.ccw.vo.CcwTagTreeVo;
 import com.ruoyi.common.core.domain.AjaxResult;
 
 /**
@@ -76,4 +77,6 @@ public interface ICcwTagService extends IService<CcwTag>
      * @return
      */
     AjaxResult getTreeInfo();
+
+    List<CcwTagTreeVo> selectTagTreeList();
 }

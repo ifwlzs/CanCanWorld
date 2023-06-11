@@ -22,7 +22,7 @@ import com.ruoyi.common.core.domain.BaseEntity;
 @AllArgsConstructor
 @ToString
 @Builder
-public class CcwBookmarkTag extends BaseEntity
+public class CcwBookmarkTag
 {
     private static final long serialVersionUID = 1L;
 
@@ -47,5 +47,13 @@ public class CcwBookmarkTag extends BaseEntity
     @JsonFormat(pattern = "yyyy-MM-dd")
     @Excel(name = "更新日", width = 30, dateFormat = "yyyy-MM-dd")
     private Date updateDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    @Excel(name = "更新日", width = 30, dateFormat = "yyyy-MM-dd")
+    private Date createTime;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    @Excel(name = "更新日", width = 30, dateFormat = "yyyy-MM-dd")
+    private Date updateTime;
 
 }
