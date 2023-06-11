@@ -3,6 +3,9 @@ package com.ruoyi.ccw.controller;
 import java.util.List;
 
 import com.ruoyi.ccw.bo.CcwBookmardksAddBo;
+import com.ruoyi.ccw.domain.CcwTag;
+import com.ruoyi.ccw.service.ICcwTagService;
+import com.ruoyi.ccw.vo.CcwTagTreeVo;
 import io.swagger.annotations.ApiOperation;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +35,8 @@ public class CcwBookmarksController extends BaseController
 
     @Autowired
     private ICcwBookmarksService ccwBookmarksService;
+    @Autowired
+    private ICcwTagService ccwTagService;
 
     @RequiresPermissions("ccw:bookmarks:view")
     @GetMapping()
@@ -65,6 +70,26 @@ public class CcwBookmarksController extends BaseController
         List<CcwBookmarks> list = ccwBookmarksService.selectCcwBookmarksList(ccwBookmarks);
         ExcelUtil<CcwBookmarks> util = new ExcelUtil<CcwBookmarks>(CcwBookmarks.class);
         return util.exportExcel(list, "书签数据");
+    }
+
+    /**
+     * 获取当前选择的书签标签
+     * @param sortId
+     * @param map
+     * @return
+     */
+    @GetMapping("selectTree/{sortId}")
+    public String selectTree(@PathVariable("sortId") Long sortId, ModelMap map){
+        CcwTag tag = ccwTagService.getById(sortId);
+        map.put("tag", tag);
+        return prefix + "/tree";
+    }
+
+    @GetMapping("/treeData")
+    @ResponseBody
+    public List<CcwTagTreeVo> treeData(){
+        List<CcwTagTreeVo> vos = ccwTagService.selectTagTreeList();
+        return vos;
     }
 
     /**
@@ -131,7 +156,7 @@ public class CcwBookmarksController extends BaseController
     @Log(title = "书签", businessType = BusinessType.OTHER)
     @PostMapping("/addBook")
     @ResponseBody
-    public AjaxResult addBook(@RequestBody CcwBookmardksAddBo bo){
+    public AjaxResult addBook(CcwBookmardksAddBo bo){
         return ccwBookmarksService.addBook(bo);
     }
 }

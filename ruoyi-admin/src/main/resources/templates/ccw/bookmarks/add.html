@@ -3,6 +3,7 @@
 <head>
     <th:block th:include="include :: header('新增书签')" />
     <th:block th:include="include :: datetimepicker-css" />
+    <th:block th:include="include :: ztree-css" />
 </head>
 <body class="white-bg">
     <div class="wrapper wrapper-content animated fadeInRight ibox-content">
@@ -115,11 +116,35 @@
                     </div>
                 </div>
             </div>
+            <div class="form-group">
+                <label class="col-sm-3 control-label">书签标签：</label>
+                <div class="col-sm-8">
+                    <label class="check-box">
+                        <input type="checkbox" value="1">展开/折叠</label>
+                    <label class="check-box">
+                        <input type="checkbox" value="2">全选/全不选</label>
+                    <label class="check-box">
+                        <input type="checkbox" value="3" checked>父子联动</label>
+                    <div id="menuTrees" class="ztree ztree-border"></div>
+                </div>
+            </div>
         </form>
     </div>
     <th:block th:include="include :: footer" />
     <th:block th:include="include :: datetimepicker-js" />
+    <th:block th:include="include :: ztree-js" />
     <script th:inline="javascript">
+        $(function() {
+            var url = ctx + "ccw/bookmarks/treeData";
+            var options = {
+                id: "menuTrees",
+                url: url,
+                check: { enable: true },
+                expandLevel: 0
+            };
+            $.tree.init(options);
+        });
+
         var prefix = ctx + "ccw/bookmarks"
         $("#form-bookmarks-add").validate({
             focusCleanup: true
@@ -127,8 +152,48 @@
 
         function submitHandler() {
             if ($.validate.form()) {
-                $.operate.save(prefix + "/add", $('#form-bookmarks-add').serialize());
+                // $.operate.save(prefix + "/addBook", $('#form-bookmarks-add').serialize());
+                add();
             }
+        }
+
+        function add() {
+            var uid = $("input[name='uid']").val();
+            var name = $("input[name='name']").val();
+            var info = $("input[name='info']").val();
+            var description = $("input[name='description']").val();
+            var url = $("input[name='url']").val();
+            var icon = $("input[name='icon']").val();
+            var statusCode = $("input[name='statusCode']").val();
+            var deleted = $("input[name='deleted']").val();
+            var sort = $("input[name='sort']").val();
+            var remark = $("input[name='remark']").val();
+            var tagIds = $.tree.getCheckedNodes();
+            $.ajax({
+                cache : true,
+                type : "POST",
+                url : ctx + "ccw/bookmarks/addBook",
+                data : {
+                    "uid": uid,
+                    "name": name,
+                    "info": info,
+                    "description": description,
+                    "url": url,
+                    "icon": icon,
+                    "statusCode": statusCode,
+                    "deleted": deleted,
+                    "sort": sort,
+                    "remark": remark,
+                    "tagIds": tagIds
+                },
+                async : false,
+                error : function(request) {
+                    $.modal.alertError("系统错误");
+                },
+                success : function(data) {
+                    $.operate.successCallback(data);
+                }
+            });
         }
 
         $("input[name='detectionTime']").datetimepicker({
@@ -154,6 +219,28 @@
             minView: "month",
             autoclose: true
         });
+
+        // /* 用户管理-新增-选择部门树 */
+        // function selectDeptTree() {
+        //     var treeId = $("#treeId").val();
+        //     var tagId = $.common.isEmpty(treeId) ? "1" : $("#treeId").val();
+        //     var url = ctx + "ccw/bookmarks/selectTree/" + tagId;
+        //     var options = {
+        //         title: '选择书签标签',
+        //         width: "380",
+        //         url: url,
+        //         callBack: doSubmit
+        //     };
+        //     $.modal.openOptions(options);
+        // }
+        //
+        // function doSubmit(index, layero){
+        //     var tree = layero.find("iframe")[0].contentWindow.$._tree;
+        //     var body = $.modal.getChildFrame(index);
+        //     $("#treeId").val(body.find('#treeId').val());
+        //     $("#treeName").val(body.find('#treeName').val());
+        //     $.modal.close(index);
+        // }
     </script>
 </body>
 </html>
