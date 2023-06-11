@@ -57,7 +57,34 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectCcwBookmarksVo"/>
         where id = #{id}
     </select>
-        
+    <select id="selectCcwBookmarksVoList" resultType="com.ruoyi.ccw.domain.CcwBookmarks">
+        SELECT
+        cbm.id, cbm.uid, cbm.name, cbm.info, cbm.description, cbm.url, cbm.icon, cbm.ping_status, cbm.status_code, cbm.deleted, cbm.sort, cbm.creator, cbm.create_time, cbm.updater, cbm.update_time, cbm.remark, cbm.detection_time, cbm.create_date, cbm.update_date, cbm.detection_date
+        FROM
+        ccw_bookmarks AS cbm
+        LEFT JOIN ccw_bookmark_tag AS cbmt ON cbm.id = cbmt.bookmark_id
+        LEFT JOIN ccw_tag AS ct ON cbmt.tag_id = ct.id
+        <where>
+            <if test="uid != null "> and uid = #{uid}</if>
+            <if test="name != null  and name != ''"> and name like concat('%', #{name}, '%')</if>
+            <if test="info != null  and info != ''"> and info = #{info}</if>
+            <if test="description != null  and description != ''"> and description = #{description}</if>
+            <if test="url != null  and url != ''"> and url = #{url}</if>
+            <if test="tagId != null"> and cbmt.tag_id = #{tagId}</if>
+            <if test="icon != null  and icon != ''"> and icon = #{icon}</if>
+            <if test="pingStatus != null "> and ping_status = #{pingStatus}</if>
+            <if test="statusCode != null "> and status_code = #{statusCode}</if>
+            <if test="deleted != null "> and deleted = #{deleted}</if>
+            <if test="sort != null "> and sort = #{sort}</if>
+            <if test="creator != null "> and creator = #{creator}</if>
+            <if test="updater != null "> and updater = #{updater}</if>
+            <if test="detectionTime != null "> and detection_time = #{detectionTime}</if>
+            <if test="createDate != null "> and create_date = #{createDate}</if>
+            <if test="updateDate != null "> and update_date = #{updateDate}</if>
+            <if test="detectionDate != null "> and detection_date = #{detectionDate}</if>
+        </where>
+    </select>
+
     <insert id="insertCcwBookmarks" parameterType="CcwBookmarks" useGeneratedKeys="true" keyProperty="id">
         insert into ccw_bookmarks
         <trim prefix="(" suffix=")" suffixOverrides=",">

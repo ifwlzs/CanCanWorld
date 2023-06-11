@@ -2,99 +2,126 @@
 <html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
 <head>
     <th:block th:include="include :: header('书签列表')" />
+    <th:block th:include="include :: layout-latest-css" />
+    <th:block th:include="include :: ztree-css" />
 </head>
 <body class="gray-bg">
-     <div class="container-div">
-        <div class="row">
-            <div class="col-sm-12 search-collapse">
-                <form id="formId">
-                    <div class="select-list">
-                        <ul>
-                            <li>
-                                <label>用户id：</label>
-                                <input type="text" name="uid"/>
-                            </li>
-                            <li>
-                                <label>网站名：</label>
-                                <input type="text" name="name"/>
-                            </li>
-                            <li>
-                                <label>简介：</label>
-                                <input type="text" name="info"/>
-                            </li>
-                            <li>
-                                <label>网址：</label>
-                                <input type="text" name="url"/>
-                            </li>
-                            <li>
-                                <label>网站icon：</label>
-                                <input type="text" name="icon"/>
-                            </li>
-                            <li>
-                                <label>网页状态码：</label>
-                                <input type="text" name="statusCode"/>
-                            </li>
-                            <li>
-                                <label>删除状态，0->未删除，1->已删除：</label>
-                                <input type="text" name="deleted"/>
-                            </li>
-                            <li>
-                                <label>排序因子：</label>
-                                <input type="text" name="sort"/>
-                            </li>
-                            <li>
-                                <label>创建人uid：</label>
-                                <input type="text" name="creator"/>
-                            </li>
-                            <li>
-                                <label>更新人uid：</label>
-                                <input type="text" name="updater"/>
-                            </li>
-                            <li>
-                                <label>检测时间：</label>
-                                <input type="text" class="time-input" placeholder="请选择检测时间" name="detectionTime"/>
-                            </li>
-                            <li>
-                                <label>创建日：</label>
-                                <input type="text" class="time-input" placeholder="请选择创建日" name="createDate"/>
-                            </li>
-                            <li>
-                                <label>更新日：</label>
-                                <input type="text" class="time-input" placeholder="请选择更新日" name="updateDate"/>
-                            </li>
-                            <li>
-                                <label>检测日：</label>
-                                <input type="text" class="time-input" placeholder="请选择检测日" name="detectionDate"/>
-                            </li>
-                            <li>
-                                <a class="btn btn-primary btn-rounded btn-sm" onclick="$.table.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
-                                <a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
-                            </li>
-                        </ul>
-                    </div>
-                </form>
+    <div class="ui-layout-west">
+        <div class="box box-main">
+            <div class="box-header">
+                <div class="box-title">
+                    <i class="fa icon-grid"></i> 书签Tag
+                </div>
+                <div class="box-tools pull-right">
+                    <a type="button" class="btn btn-box-tool" href="#" onclick="dept()" title="书签Tag"><i class="fa fa-edit"></i></a>
+                    <button type="button" class="btn btn-box-tool" id="btnExpand" title="展开" style="display:none;"><i class="fa fa-chevron-up"></i></button>
+                    <button type="button" class="btn btn-box-tool" id="btnCollapse" title="折叠"><i class="fa fa-chevron-down"></i></button>
+                    <button type="button" class="btn btn-box-tool" id="btnRefresh" title="刷新Tag"><i class="fa fa-refresh"></i></button>
+                </div>
             </div>
+            <div class="ui-layout-content">
+                <div id="tree" class="ztree"></div>
+            </div>
+        </div>
+    </div>
 
-            <div class="btn-group-sm" id="toolbar" role="group">
-                <a class="btn btn-success" onclick="$.operate.add()" shiro:hasPermission="ccw:bookmarks:add">
-                    <i class="fa fa-plus"></i> 添加
-                </a>
-                <a class="btn btn-primary single disabled" onclick="$.operate.edit()" shiro:hasPermission="ccw:bookmarks:edit">
-                    <i class="fa fa-edit"></i> 修改
-                </a>
-                <a class="btn btn-danger multiple disabled" onclick="$.operate.removeAll()" shiro:hasPermission="ccw:bookmarks:remove">
-                    <i class="fa fa-remove"></i> 删除
-                </a>
-                <a class="btn btn-warning" onclick="$.table.exportExcel()" shiro:hasPermission="ccw:bookmarks:export">
-                    <i class="fa fa-download"></i> 导出
-                </a>
-            </div>
-            <div class="col-sm-12 select-table table-striped">
-                <table id="bootstrap-table"></table>
+    <div class="ui-layout-center">
+         <div class="container-div">
+            <div class="row">
+                <div class="col-sm-12 search-collapse">
+                    <form id="formId">
+                        <input type="hidden" id="tagId" name="tagId">
+                        <input type="hidden" id="parentId" name="parentId">
+                        <div class="select-list">
+                            <ul>
+                                <li>
+                                    <label>用户id：</label>
+                                    <input type="text" name="uid"/>
+                                </li>
+                                <li>
+                                    <label>网站名：</label>
+                                    <input type="text" name="name"/>
+                                </li>
+                                <li>
+                                    <label>简介：</label>
+                                    <input type="text" name="info"/>
+                                </li>
+                                <li>
+                                    <label>网址：</label>
+                                    <input type="text" name="url"/>
+                                </li>
+                                <li>
+                                    <label>网站icon：</label>
+                                    <input type="text" name="icon"/>
+                                </li>
+                                <li>
+                                    <label>网页状态码：</label>
+                                    <input type="text" name="statusCode"/>
+                                </li>
+                                <li>
+                                    <label>删除状态，0->未删除，1->已删除：</label>
+                                    <input type="text" name="deleted"/>
+                                </li>
+                                <li>
+                                    <label>排序因子：</label>
+                                    <input type="text" name="sort"/>
+                                </li>
+                                <li>
+                                    <label>创建人uid：</label>
+                                    <input type="text" name="creator"/>
+                                </li>
+                                <li>
+                                    <label>更新人uid：</label>
+                                    <input type="text" name="updater"/>
+                                </li>
+                                <li>
+                                    <label>检测时间：</label>
+                                    <input type="text" class="time-input" placeholder="请选择检测时间" name="detectionTime"/>
+                                </li>
+                                <li>
+                                    <label>创建日：</label>
+                                    <input type="text" class="time-input" placeholder="请选择创建日" name="createDate"/>
+                                </li>
+                                <li>
+                                    <label>更新日：</label>
+                                    <input type="text" class="time-input" placeholder="请选择更新日" name="updateDate"/>
+                                </li>
+                                <li>
+                                    <label>检测日：</label>
+                                    <input type="text" class="time-input" placeholder="请选择检测日" name="detectionDate"/>
+                                </li>
+                                <li>
+                                    <a class="btn btn-primary btn-rounded btn-sm" onclick="$.table.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+                                    <a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="btn-group-sm" id="toolbar" role="group">
+                    <a class="btn btn-success" onclick="$.operate.add()" shiro:hasPermission="ccw:bookmarks:add">
+                        <i class="fa fa-plus"></i> 添加
+                    </a>
+                    <a class="btn btn-primary single disabled" onclick="$.operate.edit()" shiro:hasPermission="ccw:bookmarks:edit">
+                        <i class="fa fa-edit"></i> 修改
+                    </a>
+                    <a class="btn btn-danger multiple disabled" onclick="$.operate.removeAll()" shiro:hasPermission="ccw:bookmarks:remove">
+                        <i class="fa fa-remove"></i> 删除
+                    </a>
+                    <a class="btn btn-warning" onclick="$.table.exportExcel()" shiro:hasPermission="ccw:bookmarks:export">
+                        <i class="fa fa-download"></i> 导出
+                    </a>
+                </div>
+                <div class="col-sm-12 select-table table-striped">
+                    <table id="bootstrap-table"></table>
+                </div>
             </div>
         </div>
     </div>
     <th:block th:include="include :: footer" />
+    <th:block th:include="include :: layout-latest-js" />
+    <th:block th:include="include :: ztree-js" />
     <script th:inline="javascript">
         var editFlag = [[${@permission.hasPermi('ccw:bookmarks:edit')}]];
         var removeFlag = [[${@permission.hasPermi('ccw:bookmarks:remove')}]];
@@ -105,8 +132,26 @@
         var prefix = ctx + "ccw/bookmarks";
 
         $(function() {
+            var panehHidden = false;
+            if ($(this).width() < 769) {
+                panehHidden = true;
+            }
+            $('body').layout({ initClosed: panehHidden, west__size: 185 });
+            // 回到顶部绑定
+            if ($.fn.toTop !== undefined) {
+                var opt = {
+                    win:$('.ui-layout-center'),
+                    doc:$('.ui-layout-center')
+                };
+                $('#scroll-up').toTop(opt);
+            }
+            queryBookList();
+            queryTagTree();
+        });
+
+        function queryBookList(){
             var options = {
-                url: prefix + "/list",
+                url: prefix + "/page",
                 createUrl: prefix + "/add",
                 updateUrl: prefix + "/edit/{id}",
                 removeUrl: prefix + "/remove",
@@ -115,94 +160,133 @@
                 columns: [{
                     checkbox: true
                 },
-                {
-                    field: 'id',
-                    title: '书签表id',
-                    visible: false
-                },
-                {
-                    field: 'uid',
-                    title: '用户id'
-                },
-                {
-                    field: 'name',
-                    title: '网站名'
-                },
-                {
-                    field: 'info',
-                    title: '简介'
-                },
-                {
-                    field: 'description',
-                    title: '详细描述'
-                },
-                {
-                    field: 'url',
-                    title: '网址'
-                },
-                {
-                    field: 'icon',
-                    title: '网站icon'
-                },
-                {
-                    field: 'pingStatus',
-                    title: 'ping状态'
-                },
-                {
-                    field: 'statusCode',
-                    title: '网页状态码'
-                },
-                {
-                    field: 'deleted',
-                    title: '删除状态，0->未删除，1->已删除',
-                    formatter: function(value, row, index) {
-                       return $.table.selectDictLabel(deletedDatas, value);
-                    }
-                },
-                {
-                    field: 'sort',
-                    title: '排序因子'
-                },
-                {
-                    field: 'creator',
-                    title: '创建人uid'
-                },
-                {
-                    field: 'updater',
-                    title: '更新人uid'
-                },
-                {
-                    field: 'remark',
-                    title: '备注'
-                },
-                {
-                    field: 'detectionTime',
-                    title: '检测时间'
-                },
-                {
-                    field: 'createDate',
-                    title: '创建日'
-                },
-                {
-                    field: 'updateDate',
-                    title: '更新日'
-                },
-                {
-                    field: 'detectionDate',
-                    title: '检测日'
-                },
-                {
-                    title: '操作',
-                    align: 'center',
-                    formatter: function(value, row, index) {
-                        var actions = [];
-                        actions.push('<a class="btn btn-success btn-xs ' + editFlag + '" href="javascript:void(0)" onclick="$.operate.edit(\'' + row.id + '\')"><i class="fa fa-edit"></i>编辑</a> ');
-                        actions.push('<a class="btn btn-danger btn-xs ' + removeFlag + '" href="javascript:void(0)" onclick="$.operate.remove(\'' + row.id + '\')"><i class="fa fa-remove"></i>删除</a>');
-                        return actions.join('');
-                    }
-                }]
+                    {
+                        field: 'id',
+                        title: '书签表id',
+                        visible: false
+                    },
+                    {
+                        field: 'uid',
+                        title: '用户id'
+                    },
+                    {
+                        field: 'name',
+                        title: '网站名'
+                    },
+                    {
+                        field: 'info',
+                        title: '简介'
+                    },
+                    {
+                        field: 'description',
+                        title: '详细描述'
+                    },
+                    {
+                        field: 'url',
+                        title: '网址',
+                        formatter: function(value, row, index) {
+                            return '<a href="' + value + '" target="_blank">' + value + '</a>';
+                        }
+                    },
+                    {
+                        field: 'icon',
+                        title: '网站icon'
+                    },
+                    {
+                        field: 'tagNames',
+                        title: '所属标签'
+                    },
+                    {
+                        field: 'pingStatus',
+                        title: 'ping状态'
+                    },
+                    {
+                        field: 'statusCode',
+                        title: '网页状态码'
+                    },
+                    {
+                        field: 'deleted',
+                        title: '删除状态，0->未删除，1->已删除',
+                        formatter: function(value, row, index) {
+                            return $.table.selectDictLabel(deletedDatas, value);
+                        }
+                    },
+                    {
+                        field: 'sort',
+                        title: '排序因子'
+                    },
+                    {
+                        field: 'creator',
+                        title: '创建人uid'
+                    },
+                    {
+                        field: 'updater',
+                        title: '更新人uid'
+                    },
+                    {
+                        field: 'remark',
+                        title: '备注'
+                    },
+                    {
+                        field: 'detectionTime',
+                        title: '检测时间'
+                    },
+                    {
+                        field: 'createDate',
+                        title: '创建日'
+                    },
+                    {
+                        field: 'updateDate',
+                        title: '更新日'
+                    },
+                    {
+                        field: 'detectionDate',
+                        title: '检测日'
+                    },
+                    {
+                        title: '操作',
+                        align: 'center',
+                        formatter: function(value, row, index) {
+                            var actions = [];
+                            actions.push('<a class="btn btn-success btn-xs ' + editFlag + '" href="javascript:void(0)" onclick="$.operate.edit(\'' + row.id + '\')"><i class="fa fa-edit"></i>编辑</a> ');
+                            actions.push('<a class="btn btn-danger btn-xs ' + removeFlag + '" href="javascript:void(0)" onclick="$.operate.remove(\'' + row.id + '\')"><i class="fa fa-remove"></i>删除</a>');
+                            return actions.join('');
+                        }
+                    }]
             };
             $.table.init(options);
+        }
+
+        function queryTagTree(){
+            var url = ctx + "ccw/bookmarks/treeData";
+            var options = {
+                url: url,
+                expandLevel: 2,
+                onClick : zOnClick
+            };
+            $.tree.init(options);
+
+            function zOnClick(event, treeId, treeNode) {
+                $("#tagId").val(treeNode.id);
+                $("#parentId").val(treeNode.pId);
+                $.table.search();
+            }
+        }
+
+        $('#btnExpand').click(function() {
+            $._tree.expandAll(true);
+            $(this).hide();
+            $('#btnCollapse').show();
+        });
+
+        $('#btnCollapse').click(function() {
+            $._tree.expandAll(false);
+            $(this).hide();
+            $('#btnExpand').show();
+        });
+
+        $('#btnRefresh').click(function() {
+            queryTagTree();
         });
     </script>
 </body>

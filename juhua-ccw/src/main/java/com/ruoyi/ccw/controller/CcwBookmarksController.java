@@ -3,8 +3,10 @@ package com.ruoyi.ccw.controller;
 import java.util.List;
 
 import com.ruoyi.ccw.bo.CcwBookmardksAddBo;
+import com.ruoyi.ccw.bo.CcwBookmarksSearchBo;
 import com.ruoyi.ccw.domain.CcwTag;
 import com.ruoyi.ccw.service.ICcwTagService;
+import com.ruoyi.ccw.vo.CcwBookmarksListVo;
 import com.ruoyi.ccw.vo.CcwTagTreeVo;
 import io.swagger.annotations.ApiOperation;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
@@ -55,6 +57,19 @@ public class CcwBookmarksController extends BaseController
     {
         startPage();
         List<CcwBookmarks> list = ccwBookmarksService.selectCcwBookmarksList(ccwBookmarks);
+        return getDataTable(list);
+    }
+
+    /**
+     * 查询书签列表
+     */
+    @RequiresPermissions("ccw:bookmarks:list")
+    @PostMapping("/page")
+    @ResponseBody
+    public TableDataInfo page(CcwBookmarksSearchBo ccwBookmarks)
+    {
+        startPage();
+        List<CcwBookmarksListVo> list = ccwBookmarksService.pageList(ccwBookmarks);
         return getDataTable(list);
     }
 

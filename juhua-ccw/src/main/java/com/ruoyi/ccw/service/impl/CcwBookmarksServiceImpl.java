@@ -12,12 +12,16 @@ import java.util.stream.Collectors;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ObjectUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ruoyi.ccw.bo.CcwBookmardksAddBo;
+import com.ruoyi.ccw.bo.CcwBookmarksSearchBo;
 import com.ruoyi.ccw.domain.CcwBookmarkTag;
+import com.ruoyi.ccw.domain.CcwTag;
 import com.ruoyi.ccw.service.ICcwBookmarkTagService;
 import com.ruoyi.ccw.service.ICcwTagService;
 import com.ruoyi.ccw.utils.HttpUtils;
+import com.ruoyi.ccw.vo.CcwBookmarksListVo;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
@@ -68,6 +72,58 @@ public class CcwBookmarksServiceImpl extends ServiceImpl<CcwBookmarksMapper, Ccw
     public List<CcwBookmarks> selectCcwBookmarksList(CcwBookmarks ccwBookmarks)
     {
         return ccwBookmarksMapper.selectCcwBookmarksList(ccwBookmarks);
+    }
+
+    @Override
+    public List<CcwBookmarksListVo> pageList(CcwBookmarksSearchBo ccwBookmarks) {
+        List<CcwBookmarksListVo> vos = new ArrayList<>();
+        // 根据条件查询书签
+        List<CcwBookmarks> bookmarks = ccwBookmarksMapper.selectCcwBookmarksVoList(ccwBookmarks);
+        // 提取其中的id
+        if (ObjectUtil.isNotEmpty(bookmarks)){
+            List<Long> bookmarkIdList = bookmarks.stream().map(CcwBookmarks::getId).distinct().collect(Collectors.toList());
+            // 查询其中所有的书签Tag
+            List<CcwBookmarkTag> bookmarkTags = bookmarkTagService.list(new QueryWrapper<CcwBookmarkTag>().lambda()
+                    .in(CcwBookmarkTag::getBookmarkId, bookmarkIdList));
+            if (ObjectUtil.isNotEmpty(bookmarkTags)){
+                List<Long> tagIdList = bookmarkTags.stream().map(CcwBookmarkTag::getTagId).collect(Collectors.toList());
+                // 查询tag相关信息
+                List<CcwTag> tags = tagService.list(new QueryWrapper<CcwTag>().lambda()
+                        .in(CcwTag::getId, tagIdList)
+                        .eq(CcwTag::getDeleted, 0));
+                if (ObjectUtil.isNotEmpty(tags)){
+                    bookmarks.forEach(bookmark -> vos.add(getVoExpand(bookmark, bookmarkTags, tags)));
+                }
+            }
+        }
+        return vos;
+    }
+
+    /**
+     * 获取书签信息
+     * @param bookmark
+     * @param bookmarkTags
+     * @param tags
+     * @return
+     */
+    private CcwBookmarksListVo getVoExpand(CcwBookmarks bookmark, List<CcwBookmarkTag> bookmarkTags, List<CcwTag> tags) {
+        CcwBookmarksListVo vo = BeanUtil.toBean(bookmark, CcwBookmarksListVo.class);
+        // 根据书签id筛选出自己的tag
+        List<CcwBookmarkTag> tmpBookTags = bookmarkTags.stream().filter(val -> val.getBookmarkId().equals(bookmark.getId())).collect(Collectors.toList());
+        if (ObjectUtil.isNotEmpty(tmpBookTags)){
+            List<Long> tagIdList = tmpBookTags.stream().map(CcwBookmarkTag::getTagId).distinct().collect(Collectors.toList());
+            if (ObjectUtil.isNotEmpty(tags)){
+                List<CcwTag> tmpTags = tags.stream().filter(va -> tagIdList.contains(va.getId())).distinct().collect(Collectors.toList());
+                if (ObjectUtil.isNotEmpty(tmpTags)){
+                    StringBuilder tagName = new StringBuilder();
+                    for (CcwTag tmpTag : tmpTags) {
+                        tagName.append(",").append(tmpTag.getName());
+                    }
+                    vo.setTagNames(tagName.substring(1));
+                }
+            }
+        }
+        return vo;
     }
 
     /**
