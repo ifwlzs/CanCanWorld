@@ -4,7 +4,9 @@ import java.util.List;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.ruoyi.ccw.bo.CcwBookmardksAddBo;
+import com.ruoyi.ccw.bo.CcwBookmarksSearchBo;
 import com.ruoyi.ccw.domain.CcwBookmarks;
+import com.ruoyi.ccw.vo.CcwBookmarksListVo;
 import com.ruoyi.common.core.domain.AjaxResult;
 
 /**
@@ -30,6 +32,8 @@ public interface ICcwBookmarksService extends IService<CcwBookmarks>
      * @return 书签集合
      */
     public List<CcwBookmarks> selectCcwBookmarksList(CcwBookmarks ccwBookmarks);
+
+    public List<CcwBookmarksListVo> pageList(CcwBookmarksSearchBo ccwBookmarks);
 
     /**
      * 新增书签
