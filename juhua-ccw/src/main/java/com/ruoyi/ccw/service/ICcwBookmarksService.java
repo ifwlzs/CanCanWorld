@@ -49,7 +49,7 @@ public interface ICcwBookmarksService extends IService<CcwBookmarks>
      * @param ccwBookmarks 书签
      * @return 结果
      */
-    public int updateCcwBookmarks(CcwBookmarks ccwBookmarks);
+    public AjaxResult updateCcwBookmarks(CcwBookmardksAddBo ccwBookmarks);
 
     /**
      * 批量删除书签
@@ -57,7 +57,7 @@ public interface ICcwBookmarksService extends IService<CcwBookmarks>
      * @param ids 需要删除的书签主键集合
      * @return 结果
      */
-    public int deleteCcwBookmarksByIds(String ids);
+    public AjaxResult deleteCcwBookmarksByIds(String ids);
 
     /**
      * 删除书签信息

@@ -13,7 +13,7 @@
                     <i class="fa icon-grid"></i> 书签Tag
                 </div>
                 <div class="box-tools pull-right">
-                    <a type="button" class="btn btn-box-tool" href="#" onclick="dept()" title="书签Tag"><i class="fa fa-edit"></i></a>
+                    <a type="button" class="btn btn-box-tool" href="#" onclick="tag()" title="书签Tag"><i class="fa fa-edit"></i></a>
                     <button type="button" class="btn btn-box-tool" id="btnExpand" title="展开" style="display:none;"><i class="fa fa-chevron-up"></i></button>
                     <button type="button" class="btn btn-box-tool" id="btnCollapse" title="折叠"><i class="fa fa-chevron-down"></i></button>
                     <button type="button" class="btn btn-box-tool" id="btnRefresh" title="刷新Tag"><i class="fa fa-refresh"></i></button>
@@ -206,7 +206,7 @@
                     },
                     {
                         field: 'deleted',
-                        title: '删除状态，0->未删除，1->已删除',
+                        title: '删除状态',
                         formatter: function(value, row, index) {
                             return $.table.selectDictLabel(deletedDatas, value);
                         }
@@ -215,34 +215,34 @@
                         field: 'sort',
                         title: '排序因子'
                     },
-                    {
-                        field: 'creator',
-                        title: '创建人uid'
-                    },
-                    {
-                        field: 'updater',
-                        title: '更新人uid'
-                    },
-                    {
-                        field: 'remark',
-                        title: '备注'
-                    },
-                    {
-                        field: 'detectionTime',
-                        title: '检测时间'
-                    },
-                    {
-                        field: 'createDate',
-                        title: '创建日'
-                    },
-                    {
-                        field: 'updateDate',
-                        title: '更新日'
-                    },
-                    {
-                        field: 'detectionDate',
-                        title: '检测日'
-                    },
+                    // {
+                    //     field: 'creator',
+                    //     title: '创建人uid'
+                    // },
+                    // {
+                    //     field: 'updater',
+                    //     title: '更新人uid'
+                    // },
+                    // {
+                    //     field: 'remark',
+                    //     title: '备注'
+                    // },
+                    // {
+                    //     field: 'detectionTime',
+                    //     title: '检测时间'
+                    // },
+                    // {
+                    //     field: 'createDate',
+                    //     title: '创建日'
+                    // },
+                    // {
+                    //     field: 'updateDate',
+                    //     title: '更新日'
+                    // },
+                    // {
+                    //     field: 'detectionDate',
+                    //     title: '检测日'
+                    // },
                     {
                         title: '操作',
                         align: 'center',
@@ -288,6 +288,11 @@
         $('#btnRefresh').click(function() {
             queryTagTree();
         });
+
+        function tag() {
+            var url = ctx + "ccw/bookmarks/tag";
+            $.modal.openTab("书签标签", url);
+        }
     </script>
 </body>
 </html>

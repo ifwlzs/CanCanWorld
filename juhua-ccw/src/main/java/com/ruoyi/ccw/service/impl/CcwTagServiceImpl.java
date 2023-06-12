@@ -8,8 +8,11 @@ import cn.hutool.core.lang.tree.Tree;
 import cn.hutool.core.lang.tree.TreeNodeConfig;
 import cn.hutool.core.lang.tree.TreeUtil;
 import cn.hutool.core.util.ObjectUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.ruoyi.ccw.domain.CcwBookmarkTag;
 import com.ruoyi.ccw.dto.CcwTagTreeDTO;
+import com.ruoyi.ccw.service.ICcwBookmarkTagService;
 import com.ruoyi.ccw.vo.CcwTagTreeVo;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.utils.DateUtils;
@@ -31,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class CcwTagServiceImpl extends ServiceImpl<CcwTagMapper, CcwTag> implements ICcwTagService {
     @Autowired
     private CcwTagMapper ccwTagMapper;
+    @Autowired
+    private ICcwBookmarkTagService ccwBookmarkTagService;
 
     /**
      * 查询书签标签
@@ -204,6 +209,29 @@ public class CcwTagServiceImpl extends ServiceImpl<CcwTagMapper, CcwTag> impleme
         if (ObjectUtil.isNotEmpty(tags)){
             for (CcwTag tag : tags) {
                 CcwTagTreeVo vo = BeanUtil.toBean(tag, CcwTagTreeVo.class);
+                vos.add(vo);
+            }
+            vos = CcwTagTreeVo.buildTree(vos);
+        }
+        return vos;
+    }
+
+    @Override
+    public List<CcwTagTreeVo> selectTagTreeList(Long id) {
+        // 查询所有标签
+        List<CcwTag> tags = list();
+        // 构建新的树结构
+        List<CcwTagTreeVo> vos = new ArrayList<>();
+        // 根据id查询对应的tag
+        List<CcwBookmarkTag> bookmarkTags = ccwBookmarkTagService.list(new QueryWrapper<CcwBookmarkTag>().lambda()
+                .eq(CcwBookmarkTag::getBookmarkId, id));
+        if (ObjectUtil.isNotEmpty(tags)){
+            for (CcwTag tag : tags) {
+                CcwTagTreeVo vo = BeanUtil.toBean(tag, CcwTagTreeVo.class);
+                if (ObjectUtil.isNotEmpty(bookmarkTags)){
+                    List<Long> tagIdList = bookmarkTags.stream().map(CcwBookmarkTag::getTagId).distinct().collect(Collectors.toList());
+                    vo.setChecked(tagIdList.contains(vo.getId()));
+                }
                 vos.add(vo);
             }
             vos = CcwTagTreeVo.buildTree(vos);

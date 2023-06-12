@@ -79,4 +79,6 @@ public interface ICcwTagService extends IService<CcwTag>
     AjaxResult getTreeInfo();
 
     List<CcwTagTreeVo> selectTagTreeList();
+
+    List<CcwTagTreeVo> selectTagTreeList(Long id);
 }
