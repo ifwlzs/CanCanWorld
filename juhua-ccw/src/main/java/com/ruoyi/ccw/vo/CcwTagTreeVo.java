@@ -38,6 +38,9 @@ public class CcwTagTreeVo {
     /** 关键词 */
     private String keywords;
 
+    /** 是否被选中*/
+    private boolean checked;
+
     private List<CcwTagTreeVo> children;
 
     // 添加子节点的方法

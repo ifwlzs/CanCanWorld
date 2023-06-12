@@ -3,11 +3,12 @@
 <head>
     <th:block th:include="include :: header('修改书签')" />
     <th:block th:include="include :: datetimepicker-css" />
+    <th:block th:include="include :: ztree-css" />
 </head>
 <body class="white-bg">
     <div class="wrapper wrapper-content animated fadeInRight ibox-content">
         <form class="form-horizontal m" id="form-bookmarks-edit" th:object="${ccwBookmarks}">
-            <input name="id" th:field="*{id}" type="hidden">
+            <input id="id" name="id" th:field="*{id}" type="hidden">
             <div class="form-group">    
                 <label class="col-sm-3 control-label">用户id：</label>
                 <div class="col-sm-8">
@@ -62,18 +63,18 @@
                     <input name="sort" th:field="*{sort}" class="form-control" type="text">
                 </div>
             </div>
-            <div class="form-group">    
-                <label class="col-sm-3 control-label">创建人uid：</label>
-                <div class="col-sm-8">
-                    <input name="creator" th:field="*{creator}" class="form-control" type="text">
-                </div>
-            </div>
-            <div class="form-group">    
-                <label class="col-sm-3 control-label">更新人uid：</label>
-                <div class="col-sm-8">
-                    <input name="updater" th:field="*{updater}" class="form-control" type="text">
-                </div>
-            </div>
+<!--            <div class="form-group">    -->
+<!--                <label class="col-sm-3 control-label">创建人uid：</label>-->
+<!--                <div class="col-sm-8">-->
+<!--                    <input name="creator" th:field="*{creator}" class="form-control" type="text">-->
+<!--                </div>-->
+<!--            </div>-->
+<!--            <div class="form-group">    -->
+<!--                <label class="col-sm-3 control-label">更新人uid：</label>-->
+<!--                <div class="col-sm-8">-->
+<!--                    <input name="updater" th:field="*{updater}" class="form-control" type="text">-->
+<!--                </div>-->
+<!--            </div>-->
             <div class="form-group">
                 <label class="col-sm-3 control-label">备注：</label>
                 <div class="col-sm-8">
@@ -89,24 +90,24 @@
                     </div>
                 </div>
             </div>
-            <div class="form-group">    
-                <label class="col-sm-3 control-label">创建日：</label>
-                <div class="col-sm-8">
-                    <div class="input-group date">
-                        <input name="createDate" th:value="${#dates.format(ccwBookmarks.createDate, 'yyyy-MM-dd')}" class="form-control" placeholder="yyyy-MM-dd" type="text">
-                        <span class="input-group-addon"><i class="fa fa-calendar"></i></span>
-                    </div>
-                </div>
-            </div>
-            <div class="form-group">    
-                <label class="col-sm-3 control-label">更新日：</label>
-                <div class="col-sm-8">
-                    <div class="input-group date">
-                        <input name="updateDate" th:value="${#dates.format(ccwBookmarks.updateDate, 'yyyy-MM-dd')}" class="form-control" placeholder="yyyy-MM-dd" type="text">
-                        <span class="input-group-addon"><i class="fa fa-calendar"></i></span>
-                    </div>
-                </div>
-            </div>
+<!--            <div class="form-group">    -->
+<!--                <label class="col-sm-3 control-label">创建日：</label>-->
+<!--                <div class="col-sm-8">-->
+<!--                    <div class="input-group date">-->
+<!--                        <input name="createDate" th:value="${#dates.format(ccwBookmarks.createDate, 'yyyy-MM-dd')}" class="form-control" placeholder="yyyy-MM-dd" type="text">-->
+<!--                        <span class="input-group-addon"><i class="fa fa-calendar"></i></span>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--            <div class="form-group">    -->
+<!--                <label class="col-sm-3 control-label">更新日：</label>-->
+<!--                <div class="col-sm-8">-->
+<!--                    <div class="input-group date">-->
+<!--                        <input name="updateDate" th:value="${#dates.format(ccwBookmarks.updateDate, 'yyyy-MM-dd')}" class="form-control" placeholder="yyyy-MM-dd" type="text">-->
+<!--                        <span class="input-group-addon"><i class="fa fa-calendar"></i></span>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
             <div class="form-group">    
                 <label class="col-sm-3 control-label">检测日：</label>
                 <div class="col-sm-8">
@@ -116,11 +117,35 @@
                     </div>
                 </div>
             </div>
+            <div class="form-group">
+                <label class="col-sm-3 control-label">书签标签：</label>
+                <div class="col-sm-8">
+                    <label class="check-box">
+                        <input type="checkbox" value="1">展开/折叠</label>
+                    <label class="check-box">
+                        <input type="checkbox" value="2">全选/全不选</label>
+                    <label class="check-box">
+                        <input type="checkbox" value="3" checked>父子联动</label>
+                    <div id="menuTrees" class="ztree ztree-border"></div>
+                </div>
+            </div>
         </form>
     </div>
     <th:block th:include="include :: footer" />
     <th:block th:include="include :: datetimepicker-js" />
+    <th:block th:include="include :: ztree-js" />
     <script th:inline="javascript">
+        $(function() {
+            var url = ctx + "ccw/bookmarks/treeDataById?id=" + $("#id").val();
+            var options = {
+                id: "menuTrees",
+                url: url,
+                check: { enable: true },
+                expandLevel: 0
+            };
+            $.tree.init(options);
+        });
+
         var prefix = ctx + "ccw/bookmarks";
         $("#form-bookmarks-edit").validate({
             focusCleanup: true
@@ -128,8 +153,50 @@
 
         function submitHandler() {
             if ($.validate.form()) {
-                $.operate.save(prefix + "/edit", $('#form-bookmarks-edit').serialize());
+                // $.operate.save(prefix + "/edit", $('#form-bookmarks-edit').serialize());
+                edit();
             }
+        }
+
+        function edit() {
+            var id = $("input[name='id']").val();
+            var uid = $("input[name='uid']").val();
+            var name = $("input[name='name']").val();
+            var info = $("input[name='info']").val();
+            var description = $("input[name='description']").val();
+            var url = $("input[name='url']").val();
+            var icon = $("input[name='icon']").val();
+            var statusCode = $("input[name='statusCode']").val();
+            var deleted = $("input[name='deleted']").val();
+            var sort = $("input[name='sort']").val();
+            var remark = $("input[name='remark']").val();
+            var tagIds = $.tree.getCheckedNodes();
+            $.ajax({
+                cache : true,
+                type : "POST",
+                url : ctx + "ccw/bookmarks/edit",
+                data : {
+                    "id": id,
+                    "uid": uid,
+                    "name": name,
+                    "info": info,
+                    "description": description,
+                    "url": url,
+                    "icon": icon,
+                    "statusCode": statusCode,
+                    "deleted": deleted,
+                    "sort": sort,
+                    "remark": remark,
+                    "tagIds": tagIds
+                },
+                async : false,
+                error : function(request) {
+                    $.modal.alertError("系统错误");
+                },
+                success : function(data) {
+                    $.operate.successCallback(data);
+                }
+            });
         }
 
         $("input[name='detectionTime']").datetimepicker({
@@ -137,19 +204,19 @@
             minView: "month",
             autoclose: true
         });
-
-        $("input[name='createDate']").datetimepicker({
-            format: "yyyy-mm-dd",
-            minView: "month",
-            autoclose: true
-        });
-
-        $("input[name='updateDate']").datetimepicker({
-            format: "yyyy-mm-dd",
-            minView: "month",
-            autoclose: true
-        });
-
+        //
+        // $("input[name='createDate']").datetimepicker({
+        //     format: "yyyy-mm-dd",
+        //     minView: "month",
+        //     autoclose: true
+        // });
+        //
+        // $("input[name='updateDate']").datetimepicker({
+        //     format: "yyyy-mm-dd",
+        //     minView: "month",
+        //     autoclose: true
+        // });
+        //
         $("input[name='detectionDate']").datetimepicker({
             format: "yyyy-mm-dd",
             minView: "month",

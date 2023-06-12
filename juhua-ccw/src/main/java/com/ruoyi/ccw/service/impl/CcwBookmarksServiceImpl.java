@@ -146,10 +146,40 @@ public class CcwBookmarksServiceImpl extends ServiceImpl<CcwBookmarksMapper, Ccw
      * @return 结果
      */
     @Override
-    public int updateCcwBookmarks(CcwBookmarks ccwBookmarks)
+    public AjaxResult updateCcwBookmarks(CcwBookmardksAddBo ccwBookmarks)
     {
-        ccwBookmarks.setUpdateTime(DateUtils.getNowDate());
-        return ccwBookmarksMapper.updateCcwBookmarks(ccwBookmarks);
+//        ccwBookmarks.setUpdateTime(DateUtils.getNowDate());
+        // 初始化书签信息
+        CcwBookmarks bookmarks = BeanUtil.toBean(ccwBookmarks, CcwBookmarks.class);
+        bookmarks = getBookInit(bookmarks);
+        // 执行书签新增操作
+        boolean bookRes = updateById(bookmarks);
+        if (!bookRes){
+            return AjaxResult.error("修改失败");
+        }
+        // 提取相关的tagId
+        List<Long> tagIdList = Arrays.asList(ccwBookmarks.getTagIds().split(",")).stream().map(Long::parseLong).distinct().collect(Collectors.toList());
+        List<CcwBookmarkTag> bookmarkTags = new ArrayList<>();
+        // 根据id查询原有的tagId并删除
+        boolean delRes = bookmarkTagService.remove(new QueryWrapper<CcwBookmarkTag>().lambda().eq(CcwBookmarkTag::getBookmarkId, ccwBookmarks.getId()));
+        if (!delRes){
+            return AjaxResult.error("修改失败");
+        }
+        for (Long tagId : tagIdList) {
+            CcwBookmarkTag bookmarkTag = new CcwBookmarkTag();
+            bookmarkTag.setTagId(tagId);
+            bookmarkTag.setBookmarkId(bookmarks.getId());
+            bookmarkTags.add(bookmarkTag);
+        }
+        // 执行书签标签页新增
+        if (ObjectUtil.isNotEmpty(bookmarkTags)){
+            boolean bookTagRes = bookmarkTagService.saveBatch(bookmarkTags);
+            if (!bookTagRes){
+                return AjaxResult.error("新增失败");
+            }
+        }
+
+        return AjaxResult.success("修改成功");
     }
 
     /**
@@ -159,9 +189,32 @@ public class CcwBookmarksServiceImpl extends ServiceImpl<CcwBookmarksMapper, Ccw
      * @return 结果
      */
     @Override
-    public int deleteCcwBookmarksByIds(String ids)
+    @Transactional(rollbackFor = Exception.class)
+    public AjaxResult deleteCcwBookmarksByIds(String ids)
     {
-        return ccwBookmarksMapper.deleteCcwBookmarksByIds(Convert.toStrArray(ids));
+//        ccwBookmarksMapper.deleteCcwBookmarksByIds(Convert.toStrArray(ids));
+        // 删除书签
+        if (StringUtils.isBlank(ids)){
+            return AjaxResult.success("无需删除");
+        }
+        List<Long> idList = Arrays.asList(ids.split(",")).stream().map(Long::parseLong).collect(Collectors.toList());
+        if (ObjectUtil.isEmpty(idList)){
+            return AjaxResult.success("无需删除");
+        }
+        // 执行逻辑删除
+        boolean delRes = removeBatchByIds(idList);
+        if (!delRes){
+            return AjaxResult.error("删除失败");
+        }
+        // 筛选出相应的tag
+        List<CcwBookmarkTag> bookmarkTags = bookmarkTagService.list(new QueryWrapper<CcwBookmarkTag>().lambda().in(CcwBookmarkTag::getBookmarkId, idList));
+        if (ObjectUtil.isNotEmpty(bookmarkTags)){
+            // 执行删除操作
+            if (!bookmarkTagService.removeBatchByIds(bookmarkTags)){
+                return AjaxResult.error("删除失败");
+            }
+        }
+        return AjaxResult.success("删除成功");
     }
 
     /**

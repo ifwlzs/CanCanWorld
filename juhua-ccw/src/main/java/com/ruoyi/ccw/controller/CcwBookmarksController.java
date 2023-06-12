@@ -47,6 +47,13 @@ public class CcwBookmarksController extends BaseController
         return prefix + "/bookmarks";
     }
 
+    @GetMapping("/tag")
+    public String tag()
+    {
+        String tmpPrefix = "ccw/bookmarkTag";
+        return tmpPrefix + "/bookmarkTag";
+    }
+
     /**
      * 查询书签列表
      */
@@ -107,6 +114,13 @@ public class CcwBookmarksController extends BaseController
         return vos;
     }
 
+    @GetMapping("/treeDataById")
+    @ResponseBody
+    public List<CcwTagTreeVo> treeData(Long id){
+        List<CcwTagTreeVo> vos = ccwTagService.selectTagTreeList(id);
+        return vos;
+    }
+
     /**
      * 新增书签
      */
@@ -147,9 +161,9 @@ public class CcwBookmarksController extends BaseController
     @Log(title = "书签", businessType = BusinessType.UPDATE)
     @PostMapping("/edit")
     @ResponseBody
-    public AjaxResult editSave(CcwBookmarks ccwBookmarks)
+    public AjaxResult editSave(CcwBookmardksAddBo ccwBookmarks)
     {
-        return toAjax(ccwBookmarksService.updateCcwBookmarks(ccwBookmarks));
+        return ccwBookmarksService.updateCcwBookmarks(ccwBookmarks);
     }
 
     /**
@@ -161,7 +175,7 @@ public class CcwBookmarksController extends BaseController
     @ResponseBody
     public AjaxResult remove(String ids)
     {
-        return toAjax(ccwBookmarksService.deleteCcwBookmarksByIds(ids));
+        return ccwBookmarksService.deleteCcwBookmarksByIds(ids);
     }
 
     /**
