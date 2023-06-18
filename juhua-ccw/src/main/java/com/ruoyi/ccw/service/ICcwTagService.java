@@ -6,6 +6,7 @@ import cn.hutool.core.lang.tree.Tree;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.ruoyi.ccw.domain.CcwTag;
 import com.ruoyi.ccw.dto.CcwTagTreeDTO;
+import com.ruoyi.ccw.vo.CcwTagListVo;
 import com.ruoyi.ccw.vo.CcwTagTreeVo;
 import com.ruoyi.common.core.domain.AjaxResult;
 
@@ -55,7 +56,7 @@ public interface ICcwTagService extends IService<CcwTag>
      * @param ids 需要删除的书签标签主键集合
      * @return 结果
      */
-    public int deleteCcwTagByIds(String ids);
+    public AjaxResult deleteCcwTagByIds(String ids);
 
     /**
      * 删除书签标签信息
@@ -81,4 +82,6 @@ public interface ICcwTagService extends IService<CcwTag>
     List<CcwTagTreeVo> selectTagTreeList();
 
     List<CcwTagTreeVo> selectTagTreeList(Long id);
+
+    List<CcwTagListVo> getTreeList(CcwTag ccwTag);
 }

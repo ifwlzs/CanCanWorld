@@ -13,6 +13,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ruoyi.ccw.domain.CcwBookmarkTag;
 import com.ruoyi.ccw.dto.CcwTagTreeDTO;
 import com.ruoyi.ccw.service.ICcwBookmarkTagService;
+import com.ruoyi.ccw.vo.CcwTagListVo;
 import com.ruoyi.ccw.vo.CcwTagTreeVo;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.utils.DateUtils;
@@ -109,8 +110,22 @@ public class CcwTagServiceImpl extends ServiceImpl<CcwTagMapper, CcwTag> impleme
      */
     @Override
     @Transactional
-    public int deleteCcwTagByIds(String ids) {
-        return ccwTagMapper.deleteCcwTagByIds(Convert.toStrArray(ids));
+    public AjaxResult deleteCcwTagByIds(String ids) {
+        List<Long> idList = Arrays.asList(ids.split(",")).stream().map(Long::parseLong).distinct().collect(Collectors.toList());
+        // 先查询下面是否有子节点
+        List<CcwTag> tags = list(new QueryWrapper<CcwTag>().lambda()
+                .in(CcwTag::getParentId, idList));
+        if (ObjectUtil.isNotEmpty(tags)){
+            return AjaxResult.error("还有子节点，无法删除");
+        }
+        // 再查询是否有书签关联关系
+        List<CcwBookmarkTag> bookmarkTags = ccwBookmarkTagService.list(new QueryWrapper<CcwBookmarkTag>().lambda()
+                .in(CcwBookmarkTag::getTagId, idList));
+        if (ObjectUtil.isNotEmpty(bookmarkTags)){
+            return AjaxResult.error("有书签与之关联，无法删除");
+        }
+        int res = ccwTagMapper.deleteCcwTagByIds(Convert.toStrArray(ids));
+        return res > 0 ? AjaxResult.success("删除成功") : AjaxResult.error("删除失败");
     }
 
     /**
@@ -237,6 +252,23 @@ public class CcwTagServiceImpl extends ServiceImpl<CcwTagMapper, CcwTag> impleme
             vos = CcwTagTreeVo.buildTree(vos);
         }
         return vos;
+    }
+
+
+    @Override
+    public List<CcwTagListVo> getTreeList(CcwTag ccwTag) {
+        List<CcwTagListVo> vos = new ArrayList<>();
+        List<CcwTag> tags = list();
+        if (ObjectUtil.isNotEmpty(tags)){
+            tags.forEach(tag -> vos.add(getVoExpand(tag)));
+        }
+
+        return vos;
+    }
+
+    private CcwTagListVo getVoExpand(CcwTag tag) {
+        CcwTagListVo vo = BeanUtil.toBean(tag, CcwTagListVo.class);
+        return vo;
     }
 
 

@@ -1,9 +1,14 @@
 package com.ruoyi.ccw.controller;
 
+import java.security.AccessControlContext;
 import java.util.List;
 
 import cn.hutool.core.lang.tree.Tree;
+import cn.hutool.core.util.ObjectUtil;
 import com.ruoyi.ccw.dto.CcwTagTreeDTO;
+import com.ruoyi.ccw.vo.CcwTagListVo;
+import com.ruoyi.ccw.vo.CcwTagTreeVo;
+import com.ruoyi.common.core.domain.entity.SysMenu;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
@@ -74,7 +79,12 @@ public class CcwTagController extends BaseController {
      * 新增书签标签
      */
     @GetMapping("/add")
-    public String add() {
+    public String add(ModelMap mmp) {
+        CcwTag ccwTag = null;
+        ccwTag = new CcwTag();
+        ccwTag.setId(0L);
+        ccwTag.setName("主标签");
+        mmp.put("ccwTag", ccwTag);
         return prefix + "/add";
     }
 
@@ -116,10 +126,10 @@ public class CcwTagController extends BaseController {
      */
     @RequiresPermissions("ccw:tag:remove")
     @Log(title = "书签标签", businessType = BusinessType.DELETE)
-    @PostMapping("/remove")
+    @GetMapping("/remove/{ids}")
     @ResponseBody
-    public AjaxResult remove(String ids) {
-        return toAjax(ccwTagService.deleteCcwTagByIds(ids));
+    public AjaxResult remove(@PathVariable("ids") String ids) {
+        return ccwTagService.deleteCcwTagByIds(ids);
     }
 
     /**
@@ -146,5 +156,33 @@ public class CcwTagController extends BaseController {
         return ccwTagService.getTreeInfo();
     }
 
+    /**
+     * 新-tag树列表
+     */
+    @PostMapping("/treeList")
+    @ApiOperation("新-tag树列表")
+    @ResponseBody
+    public List<CcwTagListVo> treeList(CcwTag ccwTag){
+        return ccwTagService.getTreeList(ccwTag);
+    }
+
+    @GetMapping("/selectTagTree/{id}")
+    public String selectTagTree(@PathVariable("id") Long id, ModelMap mmp){
+        CcwTag tag = new CcwTag();
+        if (ObjectUtil.isNotNull(id)){
+            tag = ccwTagService.getById(id);
+        }else {
+            tag = ccwTagService.getById(1);
+        }
+        mmp.put("tag", tag);
+        return prefix + "/tree";
+    }
+
+    @GetMapping("/treeData")
+    @ResponseBody
+    public List<CcwTagTreeVo> treeData(){
+        List<CcwTagTreeVo> vos = ccwTagService.selectTagTreeList();
+        return vos;
+    }
 
 }

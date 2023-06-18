@@ -4,6 +4,7 @@ import java.util.Date;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -60,6 +61,7 @@ public class CcwTag
 
     /** 删除状态 */
     @Excel(name = "删除状态")
+    @TableLogic(value = "0", delval = "1")
     private Long deleted;
 
     /** 创建者id */
