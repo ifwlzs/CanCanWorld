@@ -1,5 +1,6 @@
 import http from 'node:http'
 import https from 'node:https'
+import type { LookupFunction } from 'node:net'
 import type { AppEnv } from '../config/env.js'
 import { AppError } from '../errors.js'
 import { UrlPolicy, type ResolvedTarget } from './url-policy.js'
@@ -67,7 +68,7 @@ function requestOnce(target: ResolvedTarget, method: 'HEAD' | 'GET', timeoutMs: 
       method,
       headers: { 'user-agent': 'CanCanWorld-LinkChecker/0.1', accept: '*/*', connection: 'close' },
       timeout: timeoutMs,
-      lookup: (_hostname, _options, callback) => callback(null, target.address, target.family)
+      lookup: createPinnedLookup(target)
     }, (response) => {
       let bytes = 0
       let settled = false
@@ -91,6 +92,20 @@ function requestOnce(target: ResolvedTarget, method: 'HEAD' | 'GET', timeoutMs: 
     request.on('error', reject)
     request.end()
   })
+}
+
+/**
+ * 将连接固定到安全策略已经验证的 IP，同时兼容 Node 24/Bun 请求的地址数组模式。
+ * options.all 为 true 时必须返回 LookupAddress[]；返回单个字符串会被网络层解析成 undefined。
+ */
+export function createPinnedLookup(target: ResolvedTarget): LookupFunction {
+  return (_hostname, options, callback) => {
+    if (options.all) {
+      callback(null, [{ address: target.address, family: target.family }])
+      return
+    }
+    callback(null, target.address, target.family)
+  }
 }
 
 /** HTTP 状态按产品展示语义归一化，发生跳转时保留 REDIRECT 状态。 */
