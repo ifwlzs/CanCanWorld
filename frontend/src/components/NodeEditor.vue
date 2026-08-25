@@ -20,6 +20,7 @@ const form = reactive<CreateNodeInput>({
   title: '',
   url: null,
   description: null,
+  remark: null,
   iconUrl: null,
   visibility: 'public',
   tags: []
@@ -35,6 +36,7 @@ watch(() => props.modelValue, (open) => {
   form.title = props.node?.title ?? ''
   form.url = props.node?.url ?? null
   form.description = props.node?.description ?? null
+  form.remark = props.node?.remark ?? null
   form.iconUrl = props.node?.iconUrl ?? null
   form.visibility = props.node?.visibility ?? 'public'
   form.tags = [...(props.node?.tags ?? [])]
@@ -62,8 +64,11 @@ function submit(): void {
       <el-form-item v-if="form.nodeType === 'bookmark'" label="地址" required>
         <el-input v-model="form.url" type="textarea" :rows="3" />
       </el-form-item>
-      <el-form-item v-if="form.nodeType === 'bookmark'" label="描述">
+      <el-form-item v-if="form.nodeType === 'bookmark'" label="网站注释">
         <el-input v-model="form.description" type="textarea" :rows="2" maxlength="10000" />
+      </el-form-item>
+      <el-form-item v-if="form.nodeType === 'bookmark'" label="个人备注">
+        <el-input v-model="form.remark" type="textarea" :rows="2" maxlength="10000" />
       </el-form-item>
       <el-form-item v-if="form.nodeType === 'bookmark'" label="标签">
         <el-select v-model="form.tags" multiple filterable allow-create default-first-option />

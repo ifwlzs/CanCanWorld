@@ -48,6 +48,7 @@ export const navigationNodes = mysqlTable('navigation_node', {
   url: longtext('url'),
   urlHash: varchar('url_hash', { length: 64 }),
   description: text('description'),
+  remark: text('remark'),
   iconUrl: varchar('icon_url', { length: 4096 }),
   sortKey: bigint('sort_key', { mode: 'bigint', unsigned: true }).notNull(),
   enabled: boolean('enabled').notNull().default(true),
@@ -57,13 +58,15 @@ export const navigationNodes = mysqlTable('navigation_node', {
   lastCheckStatus: varchar('last_check_status', { length: 32 }),
   lastHttpStatus: int('last_http_status', { unsigned: true }),
   lastResponseTime: int('last_response_time', { unsigned: true }),
+  clickCount: bigint('click_count', { mode: 'number', unsigned: true }).notNull().default(0),
   createdAt: datetime('created_at', { mode: 'date', fsp: 3 }).notNull(),
   updatedAt: datetime('updated_at', { mode: 'date', fsp: 3 }).notNull()
 }, (table) => [
   index('idx_navigation_node_parent_sort').on(table.parentId, table.sortKey, table.id),
   index('idx_navigation_node_type_enabled').on(table.nodeType, table.enabled),
   index('idx_navigation_node_url_hash').on(table.urlHash),
-  index('idx_navigation_node_title').on(table.title)
+  index('idx_navigation_node_title').on(table.title),
+  index('idx_navigation_node_click_count').on(table.clickCount)
 ])
 
 /** 标签名称按规范化值唯一，展示名称保留用户输入。 */

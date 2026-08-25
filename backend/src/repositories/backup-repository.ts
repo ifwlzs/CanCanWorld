@@ -30,6 +30,7 @@ interface BackupNode {
   url: string | null
   url_hash: string | null
   description: string | null
+  remark?: string | null
   icon_url: string | null
   sort_key: string | number
   enabled: number
@@ -39,6 +40,7 @@ interface BackupNode {
   last_check_status: string | null
   last_http_status: number | null
   last_response_time: number | null
+  click_count?: string | number
   created_at: string | Date
   updated_at: string | Date
 }
@@ -131,15 +133,15 @@ export class BackupRepository {
       for (const node of restoredNodes) {
         await connection.execute(`
           INSERT INTO navigation_node (
-            id, parent_id, node_type, title, url, url_hash, description, icon_url, sort_key,
+            id, parent_id, node_type, title, url, url_hash, description, remark, icon_url, sort_key,
             enabled, visibility, source_metadata, last_checked_at, last_check_status,
-            last_http_status, last_response_time, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            last_http_status, last_response_time, click_count, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           node.id, node.parent_id, node.node_type, node.title, node.url, node.url_hash,
-          node.description, node.icon_url, node.sort_key, node.enabled, node.visibility,
+          node.description, node.remark ?? null, node.icon_url, node.sort_key, node.enabled, node.visibility,
           jsonValue(node.source_metadata), dateValue(node.last_checked_at), node.last_check_status,
-          node.last_http_status, node.last_response_time, dateValue(node.created_at), dateValue(node.updated_at)
+          node.last_http_status, node.last_response_time, Number(node.click_count ?? 0), dateValue(node.created_at), dateValue(node.updated_at)
         ])
       }
       for (const tag of payload.tags) await connection.execute('INSERT INTO tag (id, name, normalized_name, created_at) VALUES (?, ?, ?, ?)', [tag.id, tag.name, tag.normalized_name, dateValue(tag.created_at)])

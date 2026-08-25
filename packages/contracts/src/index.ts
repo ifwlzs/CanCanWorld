@@ -17,6 +17,7 @@ export interface NavigationNode {
   url: string | null
   bookmarkType?: 'url' | 'javascript' | undefined
   description: string | null
+  remark: string | null
   iconUrl: string | null
   sortKey: string
   enabled: boolean
@@ -26,6 +27,8 @@ export interface NavigationNode {
   lastCheckStatus?: string | null | undefined
   lastHttpStatus?: number | null | undefined
   lastResponseTime?: number | null | undefined
+  clickCount: number
+  createdAt: string
   children?: NavigationNode[] | undefined
   fullPath?: string[] | undefined
   updatedAt: string
@@ -39,6 +42,7 @@ export const navigationNodeSchema: z.ZodType<NavigationNode> = z.object({
   url: z.string().nullable(),
   bookmarkType: z.enum(['url', 'javascript']).optional(),
   description: z.string().nullable(),
+  remark: z.string().nullable(),
   iconUrl: z.string().nullable(),
   sortKey: z.string(),
   enabled: z.boolean(),
@@ -48,6 +52,8 @@ export const navigationNodeSchema: z.ZodType<NavigationNode> = z.object({
   lastCheckStatus: z.string().nullable().optional(),
   lastHttpStatus: z.number().int().nullable().optional(),
   lastResponseTime: z.number().int().nullable().optional(),
+  clickCount: z.number().int().nonnegative(),
+  createdAt: z.string().datetime(),
   children: z.array(z.lazy(() => navigationNodeSchema)).optional(),
   fullPath: z.array(z.string()).optional(),
   updatedAt: z.string()
@@ -60,6 +66,7 @@ export const createNodeSchema = z.object({
   title: z.string().trim().max(512).default(''),
   url: z.string().max(1_000_000).nullable().default(null),
   description: z.string().max(10_000).nullable().default(null),
+  remark: z.string().max(10_000).nullable().default(null),
   iconUrl: z.string().max(4096).nullable().default(null),
   visibility: visibilitySchema.default('public'),
   tags: z.array(z.string().trim().min(1).max(64)).max(50).default([])

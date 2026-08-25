@@ -29,6 +29,10 @@ export function createNodeRoutes(dependencies: AppDependencies) {
     await repository.move(context.req.valid('param').id, input.parentId, input.sortKey, input.updatedAt)
     return context.json({ code: 0, message: 'success', data: null })
   })
+  routes.post('/:id/click', zValidator('param', z.object({ id: z.coerce.number().int().positive() }), validatorHook), async (context) => {
+    const clickCount = await repository.recordClick(context.req.valid('param').id, context.get('user') !== null)
+    return context.json({ code: 0, message: 'success', data: { clickCount } })
+  })
   routes.delete('/:id', requireAdmin(), zValidator('param', z.object({ id: z.coerce.number().int().positive() }), validatorHook), async (context) => {
     const rawStrategy = context.req.query('strategy')
     const strategy = rawStrategy ? deleteStrategySchema.parse(rawStrategy) : undefined

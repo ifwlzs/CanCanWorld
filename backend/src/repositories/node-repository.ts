@@ -10,6 +10,7 @@ interface NodeRow extends RowDataPacket {
   title: string
   url: string | null
   description: string | null
+  remark: string | null
   icon_url: string | null
   sort_key: string | number | bigint
   enabled: number | boolean
@@ -18,6 +19,8 @@ interface NodeRow extends RowDataPacket {
   last_check_status: string | null
   last_http_status: number | null
   last_response_time: number | null
+  click_count: string | number
+  created_at: Date
   updated_at: Date
 }
 
@@ -34,8 +37,8 @@ export class NodeRepository {
   async getTree(authenticated: boolean): Promise<NavigationNode[]> {
     const visibilitySql = authenticated ? '' : "WHERE visibility = 'public' OR node_type = 'root'"
     const [rows] = await this.pool.query<NodeRow[]>(`
-      SELECT id, parent_id, node_type, title, url, description, icon_url, sort_key, enabled, visibility,
-             last_checked_at, last_check_status, last_http_status, last_response_time, updated_at
+      SELECT id, parent_id, node_type, title, url, description, remark, icon_url, sort_key, enabled, visibility,
+             last_checked_at, last_check_status, last_http_status, last_response_time, click_count, created_at, updated_at
       FROM navigation_node
       ${visibilitySql}
       ORDER BY parent_id, sort_key, id
@@ -58,10 +61,10 @@ export class NodeRepository {
       const urlHash = input.nodeType === 'bookmark' && input.url ? hashUrl(input.url) : null
       const [result] = await connection.execute<ResultSetHeader>(`
         INSERT INTO navigation_node (
-          parent_id, node_type, title, url, url_hash, description, icon_url, sort_key,
+          parent_id, node_type, title, url, url_hash, description, remark, icon_url, sort_key,
           enabled, visibility, source_metadata, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NULL, ?, ?)
-      `, [input.parentId, input.nodeType, input.title, input.url, urlHash, input.description, input.iconUrl, (maxSort + 1024n).toString(), input.visibility, now, now])
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NULL, ?, ?)
+      `, [input.parentId, input.nodeType, input.title, input.url, urlHash, input.description, input.remark, input.iconUrl, (maxSort + 1024n).toString(), input.visibility, now, now])
       const id = Number(result.insertId)
       if (input.nodeType === 'bookmark') await replaceTags(connection, id, input.tags)
       await connection.commit()
@@ -88,14 +91,15 @@ export class NodeRepository {
       const url = input.url === undefined ? current.url : input.url
       validateNodeShape(current.node_type, title, url)
       const description = input.description === undefined ? current.description : input.description
+      const remark = input.remark === undefined ? current.remark : input.remark
       const iconUrl = input.iconUrl === undefined ? current.icon_url : input.iconUrl
       const visibility = input.visibility ?? current.visibility
       const urlHash = current.node_type === 'bookmark' && url ? hashUrl(url) : null
       const [result] = await connection.execute<ResultSetHeader>(`
         UPDATE navigation_node
-        SET title = ?, url = ?, url_hash = ?, description = ?, icon_url = ?, visibility = ?, updated_at = ?
+        SET title = ?, url = ?, url_hash = ?, description = ?, remark = ?, icon_url = ?, visibility = ?, updated_at = ?
         WHERE id = ? AND updated_at = ?
-      `, [title, url, urlHash, description, iconUrl, visibility, new Date(), id, current.updated_at])
+      `, [title, url, urlHash, description, remark, iconUrl, visibility, new Date(), id, current.updated_at])
       if (result.affectedRows !== 1) throw new AppError(409, 40902, '节点已经被其他操作修改，请刷新后重试')
       if (current.node_type === 'bookmark' && input.tags) await replaceTags(connection, id, input.tags)
       await connection.commit()
@@ -192,22 +196,35 @@ export class NodeRepository {
         UNION ALL
         SELECT n.id FROM navigation_node n INNER JOIN scope s ON n.parent_id = s.id WHERE n.node_type = 'folder' ${scopeVisibility}
       )
-      SELECT DISTINCT n.id, n.parent_id, n.node_type, n.title, n.url, n.description, n.icon_url,
+      SELECT DISTINCT n.id, n.parent_id, n.node_type, n.title, n.url, n.description, n.remark, n.icon_url,
              n.sort_key, n.enabled, n.visibility, n.last_checked_at, n.last_check_status,
-             n.last_http_status, n.last_response_time, n.updated_at
+             n.last_http_status, n.last_response_time, n.click_count, n.created_at, n.updated_at
       FROM navigation_node n
       LEFT JOIN node_tag nt ON nt.node_id = n.id
       LEFT JOIN tag t ON t.id = nt.tag_id
       WHERE n.parent_id IN (SELECT id FROM scope)
         AND n.node_type = 'bookmark'
         ${visibility}
-        AND (n.title LIKE ? ESCAPE '\\\\' OR n.url LIKE ? ESCAPE '\\\\' OR n.description LIKE ? ESCAPE '\\\\' OR t.name LIKE ? ESCAPE '\\\\')
+        AND (n.title LIKE ? ESCAPE '\\\\' OR n.url LIKE ? ESCAPE '\\\\' OR n.remark LIKE ? ESCAPE '\\\\' OR n.description LIKE ? ESCAPE '\\\\' OR t.name LIKE ? ESCAPE '\\\\')
       ORDER BY n.title, n.id
       LIMIT ?
-    `, [folderId, keyword, keyword, keyword, keyword, limit])
+    `, [folderId, keyword, keyword, keyword, keyword, keyword, limit])
     const tags = await this.loadTags(rows.map((row) => Number(row.id)))
     const paths = await this.loadFolderPaths(rows.map((row) => Number(row.parent_id)), authenticated)
     return rows.map((row) => ({ ...mapNode(row, tags.get(Number(row.id)) ?? []), fullPath: paths.get(Number(row.parent_id)) ?? [] }))
+  }
+
+  /** 只为当前访问者可见且启用的书签原子累计点击数，返回新值供前端即时更新。 */
+  async recordClick(id: number, authenticated: boolean): Promise<number> {
+    const visibility = authenticated ? '' : "AND visibility = 'public'"
+    const [result] = await this.pool.execute<ResultSetHeader>(`
+      UPDATE navigation_node
+      SET click_count = click_count + 1
+      WHERE id = ? AND node_type = 'bookmark' AND enabled = 1 ${visibility}
+    `, [id])
+    if (result.affectedRows !== 1) throw new AppError(404, 40411, '可访问书签不存在')
+    const [rows] = await this.pool.execute<RowDataPacket[]>('SELECT click_count FROM navigation_node WHERE id = ? LIMIT 1', [id])
+    return Number(rows[0]?.click_count ?? 0)
   }
 
   private async requireFolder(connection: PoolConnection, id: number): Promise<void> {
@@ -233,8 +250,8 @@ export class NodeRepository {
   /** 一次加载目录集合并在内存回溯完整路径，避免为每条搜索结果执行递归查询。 */
   private async loadFolderPaths(folderIds: number[], authenticated: boolean): Promise<Map<number, string[]>> {
     const [rows] = await this.pool.query<NodeRow[]>(`
-      SELECT id, parent_id, node_type, title, url, description, icon_url, sort_key, enabled, visibility,
-             last_checked_at, last_check_status, last_http_status, last_response_time, updated_at
+      SELECT id, parent_id, node_type, title, url, description, remark, icon_url, sort_key, enabled, visibility,
+             last_checked_at, last_check_status, last_http_status, last_response_time, click_count, created_at, updated_at
       FROM navigation_node WHERE node_type IN ('root', 'folder') ${authenticated ? '' : "AND (visibility = 'public' OR node_type = 'root')"}
     `)
     const byId = new Map(rows.map((row) => [Number(row.id), row]))
@@ -333,6 +350,7 @@ function mapNode(row: NodeRow, tagNames: string[]): NavigationNode {
     url: row.url,
     bookmarkType,
     description: row.description,
+    remark: row.remark,
     iconUrl: row.icon_url,
     sortKey: String(row.sort_key),
     enabled: Boolean(row.enabled),
@@ -342,6 +360,8 @@ function mapNode(row: NodeRow, tagNames: string[]): NavigationNode {
     lastCheckStatus: row.last_check_status,
     lastHttpStatus: row.last_http_status,
     lastResponseTime: row.last_response_time,
+    clickCount: Number(row.click_count),
+    createdAt: row.created_at.toISOString(),
     children: row.node_type === 'folder' ? [] : undefined,
     fullPath: undefined,
     updatedAt: row.updated_at.toISOString()

@@ -84,6 +84,9 @@ button { letter-spacing: 0; }
 .workspace-header h1 { margin: 2px 0 0; font-size: 24px; line-height: 1.25; letter-spacing: 0; }
 .eyebrow { margin: 0; font-size: 12px; color: var(--muted); }
 .workspace-actions { display: flex; gap: 8px; }
+.workspace-tools, .sort-controls { display: flex; align-items: center; gap: 8px; }
+.workspace-tools { justify-content: flex-end; flex-wrap: wrap; }
+.sort-controls .el-select { width: 126px; }
 .node-list { max-width: 1320px; min-height: 240px; margin: 0 auto; background: var(--surface); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
 .node-row { min-height: var(--row-height); display: grid; grid-template-columns: 42px minmax(180px, 1fr) auto 38px 38px; align-items: center; gap: 8px; padding: 7px 12px; border-bottom: 1px solid var(--line); }
 .node-row:last-child { border-bottom: 0; }
@@ -96,10 +99,12 @@ button { letter-spacing: 0; }
 .node-copy strong { font-size: 14px; }
 .node-copy span { color: var(--muted); font-size: 12px; }
 .node-copy .node-path { color: var(--accent-strong); }
+.node-copy .node-remark { color: #34444f; }
 .node-copy .node-description { color: #44515c; }
 .node-copy .node-url { color: #84909a; }
 .bookmark-favicon { display: block; object-fit: contain; border-radius: 3px; }
 .node-meta { display: flex; align-items: center; gap: 6px; }
+.style2-card-details { display: none; }
 .status-dot { color: #2b8065; display: inline-flex; }
 .upload-zone { min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border: 1px dashed #aeb8c0; border-radius: 7px; background: #fafbfc; color: var(--muted); }
 .file-input { display: none; }
@@ -147,7 +152,7 @@ button { letter-spacing: 0; }
   background: transparent;
 }
 .app-shell[data-layout="style2"] .node-row {
-  min-height: 78px;
+  min-height: 168px;
   grid-template-columns: 44px minmax(0, 1fr) 34px;
   gap: 10px;
   padding: 12px;
@@ -162,8 +167,17 @@ button { letter-spacing: 0; }
 .app-shell[data-layout="style2"] .node-row > .el-dropdown { display: none; }
 .app-shell[data-layout="style2"] .node-copy { gap: 4px; }
 .app-shell[data-layout="style2"] .node-copy strong { font-size: 14px; }
+.app-shell[data-layout="style2"] .node-remark,
 .app-shell[data-layout="style2"] .node-description,
 .app-shell[data-layout="style2"] .node-url { white-space: nowrap; }
+.app-shell[data-layout="style2"] .style2-card-details { min-width: 0; height: 49px; margin-top: 3px; display: grid; grid-template-rows: 22px 22px; gap: 5px; overflow: hidden; }
+.card-status-row, .card-tag-row { min-width: 0; display: flex; align-items: center; gap: 5px; overflow: hidden; }
+.health-conclusion, .click-count, .bookmark-tag { flex: 0 0 auto; min-width: 0; height: 22px; display: inline-flex; align-items: center; padding: 0 7px; border-radius: 4px; font-size: 11px; line-height: 1; }
+.health-conclusion { color: #596771; background: #edf0f2; }
+.health-conclusion[data-tone="up"] { color: #17634f; background: #e6f2ee; }
+.health-conclusion[data-tone="down"] { color: #a12b35; background: #fbecee; }
+.click-count { color: #4e5d68; background: #f0f2f4; }
+.bookmark-tag { max-width: 86px; overflow: hidden; color: #275b76; background: #e8f2f7; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 后台管理使用固定导航和独立内容滚动区，适合长表格与重复操作。 */
 .admin-shell { width: 100%; height: 100dvh; display: grid; grid-template-columns: 224px minmax(0, 1fr); overflow: hidden; background: #f5f7f9; color: var(--text); }
@@ -226,6 +240,10 @@ button { letter-spacing: 0; }
   .sidebar.is-open { transform: translateX(0); }
   .workspace { height: calc(100dvh - 58px); padding: 18px 12px 40px; overflow: auto; }
   .workspace-header { align-items: center; }
+  .workspace-header { flex-wrap: wrap; }
+  .workspace-tools { width: 100%; justify-content: space-between; }
+  .sort-controls { flex: 1; }
+  .sort-controls .el-select { min-width: 0; width: min(180px, calc(100vw - 86px)); }
   .workspace-header h1 { font-size: 20px; }
   .node-row { grid-template-columns: 38px minmax(0, 1fr) 34px; padding: 7px 8px; }
   .node-meta, .node-row > .el-dropdown { display: none; }

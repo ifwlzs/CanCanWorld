@@ -6,8 +6,8 @@ import { parseBookmarkHtml } from '../src/parsers/bookmark-html.js'
 /** 构造测试节点，验证特殊字符和 JavaScript 内容经过导出导入仍保持一致。 */
 function node(input: Partial<NavigationNode> & Pick<NavigationNode, 'id' | 'nodeType' | 'title'>): NavigationNode {
   return {
-    parentId: 1, url: null, description: null, iconUrl: null, sortKey: '1024', enabled: true,
-    visibility: 'public', tags: [], updatedAt: new Date(0).toISOString(), ...input
+    parentId: 1, url: null, description: null, remark: null, iconUrl: null, sortKey: '1024', enabled: true,
+    visibility: 'public', tags: [], clickCount: 0, createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString(), ...input
   }
 }
 

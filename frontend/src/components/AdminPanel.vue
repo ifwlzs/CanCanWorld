@@ -95,7 +95,8 @@ const filteredNodes = computed(() => {
   return flatNodes.value.filter(({ node, path }) => {
     if (nodeType.value !== 'all' && node.nodeType !== nodeType.value) return false
     if (!keyword) return true
-    return [node.title, node.url ?? '', node.description ?? '', path].some((value) => value.toLocaleLowerCase().includes(keyword))
+    return [node.title, node.url ?? '', node.remark ?? '', node.description ?? '', node.tags.join(' '), path]
+      .some((value) => value.toLocaleLowerCase().includes(keyword))
   })
 })
 const pagedNodes = computed(() => filteredNodes.value.slice((page.value - 1) * pageSize, page.value * pageSize))
@@ -178,18 +179,19 @@ onMounted(() => void loadSummary())
 
       <section v-else-if="activeTab === 'nodes'" class="admin-content">
         <div class="admin-toolbar">
-          <label class="admin-search"><Search :size="16" /><input v-model="query" type="search" placeholder="搜索名称、地址、备注或路径" /></label>
+          <label class="admin-search"><Search :size="16" /><input v-model="query" type="search" placeholder="搜索名称、地址、备注、注释、标签或路径" /></label>
           <el-segmented v-model="nodeType" :options="[{ label: '全部', value: 'all' }, { label: '书签', value: 'bookmark' }, { label: '目录', value: 'folder' }]" />
           <button class="command-button primary" type="button" @click="emit('create', 'bookmark')"><Plus :size="16" />新建书签</button>
         </div>
         <div class="admin-table-wrap">
           <el-table :data="pagedNodes" height="100%" row-key="node.id">
             <el-table-column label="图标" width="64"><template #default="scope"><span class="admin-node-icon"><BookmarkIcon :node="scope.row.node" :size="20" /></span></template></el-table-column>
-            <el-table-column label="名称与备注" min-width="250"><template #default="scope"><div class="admin-node-copy"><strong>{{ scope.row.node.title }}</strong><span>{{ scope.row.node.description || scope.row.node.url || '目录' }}</span></div></template></el-table-column>
+            <el-table-column label="名称与备注" min-width="250"><template #default="scope"><div class="admin-node-copy"><strong>{{ scope.row.node.title }}</strong><span>{{ scope.row.node.remark || scope.row.node.description || scope.row.node.url || '目录' }}</span></div></template></el-table-column>
             <el-table-column label="路径" min-width="220" prop="path" show-overflow-tooltip />
             <el-table-column label="类型" width="84"><template #default="scope">{{ scope.row.node.nodeType === 'folder' ? '目录' : '书签' }}</template></el-table-column>
             <el-table-column label="可见性" width="90"><template #default="scope"><el-tag size="small" effect="plain">{{ scope.row.node.visibility === 'private' ? '私有' : '公开' }}</el-tag></template></el-table-column>
             <el-table-column label="状态" width="112"><template #default="scope">{{ scope.row.node.lastCheckStatus || '未检测' }}</template></el-table-column>
+            <el-table-column label="点击" width="84"><template #default="scope">{{ scope.row.node.nodeType === 'bookmark' ? scope.row.node.clickCount : '-' }}</template></el-table-column>
             <el-table-column label="操作" width="104" fixed="right"><template #default="scope"><div class="table-actions"><el-tooltip content="编辑"><button class="icon-button" type="button" aria-label="编辑节点" @click="emit('edit', scope.row.node)"><Edit3 :size="16" /></button></el-tooltip><el-tooltip content="删除"><button class="icon-button danger" type="button" aria-label="删除节点" @click="emit('remove', scope.row.node)"><Trash2 :size="16" /></button></el-tooltip></div></template></el-table-column>
           </el-table>
         </div>

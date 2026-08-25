@@ -4,6 +4,8 @@ import {
   Bookmark,
   Activity,
   Archive,
+  ArrowDown,
+  ArrowUp,
   Clipboard,
   Download,
   ExternalLink,
@@ -64,6 +66,8 @@ const initialType = ref<'folder' | 'bookmark'>('bookmark')
 const theme = ref<'default' | 'compact' | 'bookmark'>('default')
 const layoutStyle = ref<'style1' | 'style2'>('style1')
 const draggedNode = ref<NavigationNode | null>(null)
+const sortField = ref<'createdAt' | 'url' | 'title' | 'clickCount'>('createdAt')
+const sortDirection = ref<'asc' | 'desc'>('desc')
 
 /** 检测目标使用可辨识联合，避免把目录 ID 和书签 ID 混为同一种数字参数。 */
 type CheckTarget =
@@ -84,6 +88,26 @@ const faviconJob = ref<CheckJobProgress | null>(null)
 
 const pageTitle = computed(() => navigation.currentFolder?.title ?? '全部书签')
 const pagePath = computed(() => navigation.currentFolderPath.length ? navigation.currentFolderPath.join(' / ') : '全部书签')
+const titleCollator = new Intl.Collator('zh-CN', { numeric: true, sensitivity: 'base' })
+
+/** 目录保持在书签之前；书签按用户选择字段排序，并用名称和 ID 保证结果稳定。 */
+const sortedVisibleNodes = computed(() => {
+  const direction = sortDirection.value === 'asc' ? 1 : -1
+  return navigation.visibleNodes
+    .filter((node) => node.nodeType !== 'separator')
+    .slice()
+    .sort((left: NavigationNode, right: NavigationNode) => {
+      if (left.nodeType !== right.nodeType) return left.nodeType === 'folder' ? -1 : 1
+      if (left.nodeType === 'folder') return BigInt(left.sortKey) < BigInt(right.sortKey) ? -1 : 1
+      let compared = 0
+      if (sortField.value === 'createdAt') compared = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+      else if (sortField.value === 'url') compared = titleCollator.compare(left.url ?? '', right.url ?? '')
+      else if (sortField.value === 'title') compared = titleCollator.compare(left.title, right.title)
+      else compared = left.clickCount - right.clickCount
+      if (compared === 0) compared = titleCollator.compare(left.title, right.title) || left.id - right.id
+      return compared * direction
+    })
+})
 
 /** 初始化时先同步会话，再按当前权限加载后端已经过滤的节点树。 */
 async function initialize(): Promise<void> {
@@ -159,10 +183,29 @@ async function activateBookmark(node: NavigationNode): Promise<void> {
   if (!node.url) return
   if (node.bookmarkType === 'javascript') {
     await navigator.clipboard.writeText(node.url)
+    void recordBookmarkClick(node)
     ElMessage.success('JavaScript 书签已复制')
     return
   }
   window.open(node.url, '_blank', 'noopener,noreferrer')
+  void recordBookmarkClick(node)
+}
+
+/** 打开窗口后再异步计数，计数接口异常不阻塞用户访问目标网站。 */
+async function recordBookmarkClick(node: NavigationNode): Promise<void> {
+  try {
+    const result = await apiRequest<{ clickCount: number }>(`/api/v1/nodes/${node.id}/click`, { method: 'POST' })
+    node.clickCount = result.clickCount
+  } catch {
+    // 点击统计属于附属行为，目标网站已经打开时不弹出干扰性错误。
+  }
+}
+
+/** 将检测字段转换为适合卡片快速扫描的明确结论。 */
+function healthConclusion(node: NavigationNode): { label: string; tone: 'up' | 'down' | 'unknown' } {
+  if (!node.lastCheckedAt) return { label: '未检测', tone: 'unknown' }
+  if (typeof node.lastHttpStatus === 'number') return { label: `存活 · HTTP ${node.lastHttpStatus}`, tone: 'up' }
+  return { label: `异常 · ${node.lastCheckStatus || '无响应'}`, tone: 'down' }
 }
 
 /** 外观设置只保存受控样式令牌，不加载远程代码或自定义模板。 */
@@ -315,7 +358,7 @@ onMounted(async () => {
       </div>
       <form class="search-box" @submit.prevent="navigation.search">
         <Search :size="17" />
-        <input v-model="navigation.query" type="search" :placeholder="`在 ${pageTitle} 中搜索`" />
+        <input v-model="navigation.query" type="search" :placeholder="`搜索 ${pageTitle} 的名称、链接、备注、注释或标签`" />
       </form>
       <div class="top-actions">
         <button v-if="auth.authenticated" class="icon-button" type="button" aria-label="后台管理" @click="adminOpen = true"><LayoutDashboard :size="19" /></button>
@@ -359,8 +402,23 @@ onMounted(async () => {
           <p class="eyebrow">{{ navigation.searchResults ? `搜索结果 · ${pagePath}` : pagePath }}</p>
           <h1>{{ pageTitle }}</h1>
         </div>
-        <div v-if="auth.authenticated" class="workspace-actions">
-          <el-dropdown trigger="click" @command="openEditor">
+        <div class="workspace-tools">
+          <div class="sort-controls">
+            <el-select v-model="sortField" aria-label="书签排序字段">
+              <el-option label="添加时间" value="createdAt" />
+              <el-option label="链接" value="url" />
+              <el-option label="网站名" value="title" />
+              <el-option label="点击次数" value="clickCount" />
+            </el-select>
+            <el-tooltip :content="sortDirection === 'asc' ? '升序' : '降序'">
+              <button class="icon-button bordered" type="button" :aria-label="sortDirection === 'asc' ? '当前升序，点击改为降序' : '当前降序，点击改为升序'" @click="sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'">
+                <ArrowUp v-if="sortDirection === 'asc'" :size="17" />
+                <ArrowDown v-else :size="17" />
+              </button>
+            </el-tooltip>
+          </div>
+          <div v-if="auth.authenticated" class="workspace-actions">
+            <el-dropdown trigger="click" @command="openEditor">
             <button class="command-button primary" type="button"><Plus :size="17" /><span>新建</span></button>
             <template #dropdown>
               <el-dropdown-menu>
@@ -381,7 +439,8 @@ onMounted(async () => {
                 <el-dropdown-item @click="backupOpen = true"><Archive :size="15" />备份与恢复</el-dropdown-item>
               </el-dropdown-menu>
             </template>
-          </el-dropdown>
+            </el-dropdown>
+          </div>
         </div>
       </div>
 
@@ -397,7 +456,7 @@ onMounted(async () => {
       </div>
 
       <div v-loading="navigation.loading" class="node-list">
-        <template v-for="node in navigation.visibleNodes.filter((item) => item.nodeType !== 'separator')" :key="node.id">
+        <template v-for="node in sortedVisibleNodes" :key="node.id">
           <article
             class="node-row"
             :draggable="auth.authenticated"
@@ -418,12 +477,22 @@ onMounted(async () => {
             >
               <strong>{{ node.title }}</strong>
               <span v-if="node.fullPath?.length" class="node-path">{{ node.fullPath.join(' / ') }}</span>
-              <span v-if="node.description" class="node-description">{{ node.description }}</span>
+              <span v-if="node.remark" class="node-remark">备注：{{ node.remark }}</span>
+              <span v-if="node.description" class="node-description">注释：{{ node.description }}</span>
               <span v-if="node.url" class="node-url">{{ node.bookmarkType === 'javascript' ? 'JavaScript 书签' : node.url }}</span>
               <span v-else>{{ node.children?.length ?? 0 }} 个节点</span>
+              <div v-if="node.nodeType === 'bookmark'" class="style2-card-details">
+                <div class="card-status-row"><span class="health-conclusion" :data-tone="healthConclusion(node).tone">{{ healthConclusion(node).label }}</span></div>
+                <div class="card-tag-row">
+                  <span class="click-count">点击 {{ node.clickCount }}</span>
+                  <span v-for="tag in node.tags.slice(0, 2)" :key="tag" class="bookmark-tag">{{ tag }}</span>
+                  <span v-if="node.tags.length > 2" class="bookmark-tag">+{{ node.tags.length - 2 }}</span>
+                </div>
+              </div>
             </component>
             <div class="node-meta">
               <el-tag v-if="node.visibility === 'private'" size="small" effect="plain">私有</el-tag>
+              <el-tag v-if="node.nodeType === 'bookmark'" size="small" effect="plain">点击 {{ node.clickCount }}</el-tag>
               <el-tag v-for="tag in node.tags.slice(0, 2)" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
               <el-tag
                 v-if="node.lastCheckedAt"
