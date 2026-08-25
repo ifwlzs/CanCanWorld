@@ -24,6 +24,15 @@ CanCanWorld 是以 OneNav 使用体验为功能基线、重新设计无限目录
 
 Linux 发布包内置单容器 Web 运行时：Nginx 在容器内监听 `3080`，直接提供 Vue 前端，并将 `/api/` 转发给只监听容器回环地址的 Bun 后端。宿主机无需安装 Nginx、Bun、Node.js 或额外安装脚本。
 
+`main` 分支由 GitHub Actions 自动执行完整质量门禁并发布 `linux/amd64` 镜像：
+
+```text
+ghcr.io/ifwlzs/cancanworld:latest
+ghcr.io/ifwlzs/cancanworld:sha-<提交短哈希>
+```
+
+推送 `v*` 标签时还会发布同名镜像标签，并创建包含 Linux 压缩包和 SHA-256 的 GitHub Release。
+
 目标服务器安装 Docker Engine 和 Docker Compose v2 后，解压发布包、生成配置并直接启动：
 
 ```bash
@@ -35,6 +44,25 @@ cp config/docker.env.example .env
 nano .env
 
 docker compose up -d --build
+```
+
+使用 GHCR 镜像时，将 `.env` 中的镜像地址改为：
+
+```dotenv
+CANCANWORLD_IMAGE=ghcr.io/ifwlzs/cancanworld:latest
+```
+
+然后跳过服务器本地构建：
+
+```bash
+docker compose pull
+docker compose up -d --no-build
+```
+
+私有 GHCR Package 需要先使用具备 `read:packages` 权限的 GitHub Token 登录：
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io --username ifwlzs --password-stdin
 ```
 
 默认配置将完整网站映射到宿主机 `3080` 端口，并启动独立的 MySQL 8 容器。MySQL 数据保存在 Compose 命名卷中，应用和数据库都使用 `restart: unless-stopped` 随 Docker 自动恢复。

@@ -37,6 +37,11 @@ async function readLinuxPackager(): Promise<string> {
   return readFile(resolve(import.meta.dirname, '../../scripts/package-linux.ps1'), 'utf8')
 }
 
+/** 读取 GitHub 发布工作流，验证云端构建和 GHCR 交付契约。 */
+async function readGitHubPublishWorkflow(): Promise<string> {
+  return readFile(resolve(import.meta.dirname, '../../.github/workflows/publish.yml'), 'utf8')
+}
+
 describe('Linux 交互式部署脚本', () => {
   it('提供完整管理菜单和安装后固定入口', async () => {
     const installer = await readInstaller()
@@ -112,5 +117,14 @@ describe('Linux Docker Compose 部署', () => {
     expect(packager).toContain("'.dockerignore'")
     expect(packager).toContain("'compose.yaml'")
     expect(packager).toContain("'config/docker.env.example'")
+  })
+
+  it('GitHub Actions 发布 amd64 镜像和版本附件', async () => {
+    const workflow = await readGitHubPublishWorkflow()
+    expect(workflow).toContain('packages: write')
+    expect(workflow).toContain('ghcr.io/${{ github.repository }}')
+    expect(workflow).toContain('platforms: linux/amd64')
+    expect(workflow).toContain('bun run package:linux')
+    expect(workflow).toContain('release/*.tar.gz.sha256')
   })
 })

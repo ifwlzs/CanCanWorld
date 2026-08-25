@@ -1,0 +1,110 @@
+name: 发布 Linux 包和容器镜像
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# 默认权限保持只读，仅开放 GHCR 写入和标签 Release 创建所需能力。
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: 构建并发布 linux/amd64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: 检出源码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      - name: 执行质量门禁并生成 Linux 发布包
+        run: bun run package:linux
+
+      - name: 定位 Docker 构建目录
+        id: package
+        shell: bash
+        run: |
+          # 发布脚本只为当前提交生成一个匹配目录，后续镜像严格使用该目录作为上下文。
+          package_dir="$(find release -mindepth 1 -maxdepth 1 -type d -name 'cancanworld-*-linux-x64' | sort | tail -n 1)"
+          test -n "$package_dir"
+          test -f "$package_dir/deploy/docker/Dockerfile"
+          echo "directory=$package_dir" >> "$GITHUB_OUTPUT"
+          echo "version=$(tr -d '\r\n' < "$package_dir/VERSION")" >> "$GITHUB_OUTPUT"
+
+      - name: 上传 Linux 发布包到 Actions Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cancanworld-${{ steps.package.outputs.version }}-linux-x64
+          path: |
+            release/*.tar.gz
+            release/*.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 配置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录 GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 生成镜像标签和 OCI 元数据
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=tag
+            type=sha,prefix=sha-
+          labels: |
+            org.opencontainers.image.title=CanCanWorld
+            org.opencontainers.image.description=内置 Nginx 的 CanCanWorld 书签导航
+
+      - name: 构建并推送 GHCR 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.package.outputs.directory }}
+          file: ${{ steps.package.outputs.directory }}/deploy/docker/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+      - name: 创建或更新 GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          # 标签任务重跑时覆盖同名附件，避免已经存在的 Release 阻断恢复发布。
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release/*.tar.gz release/*.tar.gz.sha256 --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" release/*.tar.gz release/*.tar.gz.sha256 --verify-tag --generate-notes
+          fi
