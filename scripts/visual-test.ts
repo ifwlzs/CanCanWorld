@@ -6,7 +6,7 @@ import { readEnv } from '../backend/src/config/env.js'
 
 const appUrl = 'http://localhost:5173'
 const username = `visual_${Date.now()}`
-const password = `Visual-${crypto.randomUUID()}-Pass`
+const password = 'Ab12!x'
 const rootTitle = `视觉测试_${Date.now()}`
 const artifacts = resolve(import.meta.dirname, '../artifacts')
 
@@ -23,15 +23,21 @@ page.on('pageerror', (error) => errors.push(error.message))
 /** 使用浏览器真实流程初始化、调用 API 并验证桌面和移动布局。 */
 async function run(): Promise<void> {
   await page.goto(appUrl, { waitUntil: 'networkidle' })
-  await page.locator('.el-dialog').waitFor({ state: 'visible' })
+  const initializeDialog = page.locator('.el-dialog:visible')
+  await initializeDialog.waitFor({ state: 'visible' })
+
+  const inputs = initializeDialog.locator('input')
+  await inputs.nth(1).fill('Ab12!')
+  await inputs.nth(2).fill('Ab12!')
+  await page.getByRole('button', { name: '创建管理员' }).click()
+  await page.getByText('管理员密码长度必须为 6 到 1024 个字符', { exact: true }).waitFor()
   await page.screenshot({ path: resolve(artifacts, '01-initialize-desktop.png'), fullPage: true })
 
-  const inputs = page.locator('.el-dialog input')
   await inputs.nth(0).fill(username)
   await inputs.nth(1).fill(password)
   await inputs.nth(2).fill(password)
   await page.getByRole('button', { name: '创建管理员' }).click()
-  await page.locator('.el-dialog').waitFor({ state: 'hidden' })
+  await initializeDialog.waitFor({ state: 'hidden' })
 
   const csrfCookie = (await context.cookies()).find((cookie) => cookie.name === 'cw_csrf')
   if (!csrfCookie) throw new Error('浏览器登录后没有获得 CSRF Cookie')
@@ -72,6 +78,23 @@ async function run(): Promise<void> {
   await page.getByText(/已备份 \d+ 个节点/).waitFor()
   await page.screenshot({ path: resolve(artifacts, '05-backups-desktop.png'), fullPage: false })
   await page.keyboard.press('Escape')
+
+  await page.getByRole('button', { name: '退出登录' }).click()
+  await page.getByRole('button', { name: '登录', exact: true }).click()
+  const loginDialog = page.locator('.el-dialog:visible')
+  const loginInputs = loginDialog.locator('input')
+  await loginInputs.nth(0).fill(username)
+  await loginInputs.nth(1).fill('Wrong-Password-123')
+  const errorCountBeforeFailedLogin = errors.length
+  await loginDialog.getByRole('button', { name: '登录', exact: true }).click()
+  await page.getByText('账号或密码错误', { exact: true }).waitFor()
+  const failedLoginErrors = errors.splice(errorCountBeforeFailedLogin)
+  if (failedLoginErrors.some((message) => !message.includes('401 (Unauthorized)'))) {
+    throw new Error(`错误登录产生了非预期控制台错误：${failedLoginErrors.join(' | ')}`)
+  }
+  await loginInputs.nth(1).fill(password)
+  await loginDialog.getByRole('button', { name: '登录', exact: true }).click()
+  await loginDialog.waitFor({ state: 'hidden' })
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('button', { name: '打开目录' }).click()

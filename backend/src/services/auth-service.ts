@@ -73,8 +73,8 @@ export class AuthService {
   }
 }
 
-/** 第一版管理员密码强制最低长度，避免默认弱口令直接暴露写接口。 */
-function validateCredentials(username: string, password: string): void {
+/** 第一版管理员密码至少 6 位，并限制异常超长输入带来的哈希资源消耗。 */
+export function validateCredentials(username: string, password: string): void {
   if (username.trim().length < 3 || username.trim().length > 128) throw new AppError(422, 42202, '管理员账号长度必须为 3 到 128 个字符')
-  if (password.length < 12 || password.length > 1024) throw new AppError(422, 42203, '管理员密码长度必须为 12 到 1024 个字符')
+  if (password.length < 6 || password.length > 1024) throw new AppError(422, 42203, '管理员密码长度必须为 6 到 1024 个字符')
 }
