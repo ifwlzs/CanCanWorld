@@ -8,7 +8,9 @@ import {
   Download,
   ExternalLink,
   Folder,
+  FolderSearch,
   FolderPlus,
+  Globe2,
   Import,
   LogIn,
   LogOut,
@@ -51,7 +53,22 @@ const editingNode = ref<NavigationNode | null>(null)
 const initialType = ref<'folder' | 'bookmark'>('bookmark')
 const theme = ref<'default' | 'compact' | 'bookmark'>('default')
 const draggedNode = ref<NavigationNode | null>(null)
-const checkJob = ref<{ id: string; status: string; total: number; processed: number } | null>(null)
+
+/** 检测目标使用可辨识联合，避免把目录 ID 和书签 ID 混为同一种数字参数。 */
+type CheckTarget =
+  | { scope: 'all'; label: string }
+  | { scope: 'folder'; folderId: number; label: string }
+  | { scope: 'bookmark'; bookmarkId: number; label: string }
+
+interface CheckJobProgress {
+  id: string
+  status: string
+  total: number
+  processed: number
+  label: string
+}
+
+const checkJob = ref<CheckJobProgress | null>(null)
 
 const pageTitle = computed(() => navigation.currentFolder?.title ?? '全部书签')
 const pagePath = computed(() => navigation.currentFolderPath.length ? navigation.currentFolderPath.join(' / ') : '全部书签')
@@ -146,18 +163,22 @@ function changeTheme(value: 'default' | 'compact' | 'bookmark'): void {
   }
 }
 
-/** 批量检测创建持久化任务，页面轮询进度而不占用原请求连接。 */
-async function runChecks(bookmarkId?: number): Promise<void> {
-  const path = bookmarkId === undefined ? '/api/v1/bookmarks/check' : `/api/v1/bookmarks/${bookmarkId}/check`
+/** 按全库、当前目录树或单书签创建任务，页面轮询进度而不占用原请求连接。 */
+async function runChecks(target: CheckTarget): Promise<void> {
+  const path = target.scope === 'all'
+    ? '/api/v1/bookmarks/check'
+    : target.scope === 'folder'
+      ? `/api/v1/bookmarks/check?folderId=${target.folderId}`
+      : `/api/v1/bookmarks/${target.bookmarkId}/check`
   const created = await apiRequest<{ jobId: string }>(path, { method: 'POST' })
-  checkJob.value = { id: created.jobId, status: 'pending', total: 0, processed: 0 }
+  checkJob.value = { id: created.jobId, status: 'pending', total: 0, processed: 0, label: target.label }
   const poll = async (): Promise<void> => {
     const job = await apiRequest<{ id: string; status: string; total: number; processed: number }>(`/api/v1/check-jobs/${created.jobId}`)
-    checkJob.value = job
+    checkJob.value = { ...job, label: target.label }
     if (['pending', 'running'].includes(job.status)) window.setTimeout(() => void poll(), 1000)
     else {
       await navigation.loadTree()
-      ElMessage.success(`链接检测完成：${job.processed}/${job.total}`)
+      ElMessage.success(`${target.label}检测完成：${job.processed}/${job.total}`)
     }
   }
   await poll()
@@ -265,7 +286,8 @@ onMounted(async () => {
             <button class="icon-button bordered" type="button" aria-label="更多工具"><MoreHorizontal :size="18" /></button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="runChecks()"><Activity :size="15" />检测全部链接</el-dropdown-item>
+                <el-dropdown-item @click="runChecks({ scope: 'folder', folderId: navigation.selectedFolderId, label: '当前目录链接' })"><FolderSearch :size="15" />检测当前目录（含子目录）</el-dropdown-item>
+                <el-dropdown-item @click="runChecks({ scope: 'all', label: '全部链接' })"><Globe2 :size="15" />检测全部链接</el-dropdown-item>
                 <el-dropdown-item @click="exportHtml"><Download :size="15" />导出 HTML</el-dropdown-item>
                 <el-dropdown-item @click="backupOpen = true"><Archive :size="15" />备份与恢复</el-dropdown-item>
               </el-dropdown-menu>
@@ -275,7 +297,7 @@ onMounted(async () => {
       </div>
 
       <div v-if="checkJob && ['pending', 'running'].includes(checkJob.status)" class="job-progress">
-        <span>链接检测</span>
+        <span>{{ checkJob.label }}</span>
         <el-progress :percentage="checkJob.total ? Math.round(checkJob.processed / checkJob.total * 100) : 0" :stroke-width="6" />
         <span>{{ checkJob.processed }} / {{ checkJob.total }}</span>
       </div>
@@ -329,7 +351,7 @@ onMounted(async () => {
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click="openEditor(node.nodeType === 'folder' ? 'folder' : 'bookmark', node)">编辑</el-dropdown-item>
-                  <el-dropdown-item v-if="node.nodeType === 'bookmark' && node.bookmarkType === 'url'" @click="runChecks(node.id)"><Activity :size="15" />检测链接</el-dropdown-item>
+                  <el-dropdown-item v-if="node.nodeType === 'bookmark' && node.bookmarkType === 'url'" @click="runChecks({ scope: 'bookmark', bookmarkId: node.id, label: node.title })"><Activity :size="15" />检测链接</el-dropdown-item>
                   <el-dropdown-item divided @click="removeNode(node)">删除</el-dropdown-item>
                 </el-dropdown-menu>
               </template>

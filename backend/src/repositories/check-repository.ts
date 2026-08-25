@@ -21,23 +21,64 @@ interface ItemRow extends RowDataPacket {
   url: string
 }
 
+/** 创建检测任务时只能选择全库、单个书签或一个目录树范围。 */
+export interface CreateCheckJobOptions {
+  bookmarkId?: number
+  folderId?: number
+}
+
 /** 检测任务 Repository 管理任务快照、租约、进度和历史写入。 */
 export class CheckRepository {
   constructor(private readonly pool: Pool) {}
 
-  /** 创建任务时快照所有启用的 HTTP(S) 书签或指定单个书签。 */
-  async createJob(bookmarkId?: number): Promise<string> {
+  /** 创建任务时快照全库、指定目录树或指定单个书签中的启用 HTTP(S) 链接。 */
+  async createJob(options: CreateCheckJobOptions = {}): Promise<string> {
+    const { bookmarkId, folderId } = options
+    if (bookmarkId !== undefined && folderId !== undefined) {
+      throw new AppError(422, 42212, '检测范围参数冲突')
+    }
+
     const connection = await this.pool.getConnection()
     const id = crypto.randomUUID()
     try {
       await connection.beginTransaction()
-      const params: Array<string | number> = []
-      let filter = "node_type = 'bookmark' AND enabled = 1 AND (url LIKE 'http://%' OR url LIKE 'https://%')"
-      if (bookmarkId !== undefined) {
-        filter += ' AND id = ?'
-        params.push(bookmarkId)
+      let bookmarks: RowDataPacket[]
+      if (folderId !== undefined) {
+        // 先区分“目录不存在”和“目录内没有链接”，空目录仍会生成总数为零的有效任务。
+        const [folders] = await connection.execute<RowDataPacket[]>(
+          "SELECT id FROM navigation_node WHERE id = ? AND node_type IN ('root', 'folder') LIMIT 1",
+          [folderId]
+        )
+        if (folders.length === 0) throw new AppError(404, 40408, '检测目录不存在')
+
+        // 递归范围在任务创建事务内固化为项目快照，后续移动节点不会改变本次检测集合。
+        const [scopedBookmarks] = await connection.execute<RowDataPacket[]>(`
+          WITH RECURSIVE scope AS (
+            SELECT id FROM navigation_node WHERE id = ? AND node_type IN ('root', 'folder')
+            UNION ALL
+            SELECT node.id
+            FROM navigation_node node
+            INNER JOIN scope parent ON node.parent_id = parent.id
+            WHERE node.node_type = 'folder'
+          )
+          SELECT id
+          FROM navigation_node
+          WHERE parent_id IN (SELECT id FROM scope)
+            AND node_type = 'bookmark'
+            AND enabled = 1
+            AND (url LIKE 'http://%' OR url LIKE 'https://%')
+        `, [folderId])
+        bookmarks = scopedBookmarks
+      } else {
+        const params: number[] = []
+        let filter = "node_type = 'bookmark' AND enabled = 1 AND (url LIKE 'http://%' OR url LIKE 'https://%')"
+        if (bookmarkId !== undefined) {
+          filter += ' AND id = ?'
+          params.push(bookmarkId)
+        }
+        const [selectedBookmarks] = await connection.execute<RowDataPacket[]>(`SELECT id FROM navigation_node WHERE ${filter}`, params)
+        bookmarks = selectedBookmarks
       }
-      const [bookmarks] = await connection.execute<RowDataPacket[]>(`SELECT id FROM navigation_node WHERE ${filter}`, params)
       if (bookmarkId !== undefined && bookmarks.length === 0) throw new AppError(404, 40404, '可检测书签不存在')
       const now = new Date()
       await connection.execute(`
