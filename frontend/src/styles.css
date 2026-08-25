@@ -96,8 +96,10 @@ button { letter-spacing: 0; }
 .separator-row span { width: 100%; border-top: 1px solid #cbd3d9; }
 
 .upload-zone { min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border: 1px dashed #aeb8c0; border-radius: 7px; background: #fafbfc; color: var(--muted); }
-.upload-zone input { position: absolute; opacity: 0; pointer-events: none; }
-.upload-zone label { color: var(--text); cursor: pointer; }
+.file-input { display: none; }
+.upload-action > span { display: inline-flex; align-items: center; gap: 6px; }
+.selected-file { max-width: min(100%, 520px); overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
+.import-error { width: min(100%, 520px); }
 .import-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; margin-bottom: 16px; background: var(--line); border: 1px solid var(--line); }
 .import-stats div { min-width: 0; padding: 12px; display: flex; flex-direction: column; gap: 3px; background: var(--surface); }
 .import-stats strong { font-size: 20px; }

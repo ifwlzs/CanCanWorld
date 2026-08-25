@@ -2,7 +2,7 @@
 import type { ImportGroupOverride, ImportPreview, ImportPreviewNode } from '@cancanworld/contracts'
 import { FileUp, Link, Minus, Pencil, Upload } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { apiRequest } from '../api/client'
 
 const props = defineProps<{ modelValue: boolean; parentId: number }>()
@@ -12,9 +12,11 @@ const emit = defineEmits<{
 }>()
 
 const file = ref<File | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 const preview = ref<ImportPreview | null>(null)
 const strategy = ref<'keep_all' | 'skip_same_url'>('keep_all')
 const busy = ref(false)
+const requestError = ref('')
 const summary = computed(() => preview.value?.stats)
 const previewTree = computed(() => preview.value?.nodes.map(toTreeItem) ?? [])
 
@@ -44,6 +46,12 @@ function toTreeItem(node: ImportPreviewNode): PreviewTreeItem {
 function selectFile(event: Event): void {
   file.value = (event.target as HTMLInputElement).files?.[0] ?? null
   preview.value = null
+  requestError.value = ''
+}
+
+/** 明确按钮同步触发浏览器原生文件选择器，不依赖隐藏输入框的标签转发。 */
+function openFilePicker(): void {
+  fileInput.value?.click()
 }
 
 /** 上传后端解析并返回规范化树，确认前不写正式节点表。 */
@@ -51,10 +59,13 @@ async function createPreview(): Promise<void> {
   if (!file.value) return
   busy.value = true
   try {
+    requestError.value = ''
     const body = new FormData()
     body.append('file', file.value)
     body.append('parentId', String(props.parentId))
     preview.value = await apiRequest<ImportPreview>('/api/v1/import/html/preview', { method: 'POST', body })
+  } catch (error) {
+    requestError.value = error instanceof Error ? error.message : '书签文件解析失败'
   } finally {
     busy.value = false
   }
@@ -65,6 +76,7 @@ async function confirmImport(): Promise<void> {
   if (!preview.value) return
   busy.value = true
   try {
+    requestError.value = ''
     await apiRequest(`/api/v1/import/${preview.value.jobId}/confirm`, {
       method: 'POST',
       headers: { 'idempotency-key': crypto.randomUUID() },
@@ -72,8 +84,9 @@ async function confirmImport(): Promise<void> {
     })
     emit('imported')
     emit('update:modelValue', false)
-    preview.value = null
-    file.value = null
+    resetDialog()
+  } catch (error) {
+    requestError.value = error instanceof Error ? error.message : '书签导入失败'
   } finally {
     busy.value = false
   }
@@ -121,15 +134,33 @@ async function convertGroup(item: PreviewTreeItem, type: 'bookmark' | 'separator
 function isMessageBoxCancellation(error: unknown): boolean {
   return error === 'cancel' || error === 'close'
 }
+
+/** 关闭后清空原生 input 值，重新选择同一个文件时仍会触发 change 事件。 */
+function resetDialog(): void {
+  preview.value = null
+  file.value = null
+  requestError.value = ''
+  if (fileInput.value) fileInput.value.value = ''
+}
+
+watch(() => props.modelValue, (open) => {
+  if (!open) resetDialog()
+})
 </script>
 
 <template>
   <el-dialog :model-value="props.modelValue" title="导入浏览器书签" width="min(760px, calc(100vw - 32px))" @close="emit('update:modelValue', false)">
     <div v-if="!preview" class="upload-zone">
       <FileUp :size="36" />
-      <input id="bookmark-file" type="file" accept=".html,.htm,text/html" @change="selectFile" />
-      <label for="bookmark-file">{{ file?.name ?? '选择 HTML 文件' }}</label>
-      <el-button :icon="Upload" :disabled="!file" :loading="busy" @click="createPreview">解析预览</el-button>
+      <input ref="fileInput" class="file-input" type="file" accept=".html,.htm,text/html" @change="selectFile" />
+      <el-button type="primary" plain class="upload-action" @click="openFilePicker">
+        <FileUp :size="16" /><span>{{ file ? '重新选择 HTML 文件' : '选择 HTML 文件' }}</span>
+      </el-button>
+      <span class="selected-file" :title="file?.name">{{ file?.name ?? '尚未选择文件' }}</span>
+      <el-button class="upload-action" :disabled="!file" :loading="busy" @click="createPreview">
+        <Upload :size="16" /><span>解析预览</span>
+      </el-button>
+      <el-alert v-if="requestError" class="import-error" :title="requestError" type="error" :closable="false" show-icon />
     </div>
     <template v-else>
       <div class="import-stats">

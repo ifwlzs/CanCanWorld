@@ -22,14 +22,16 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import 'element-plus/es/components/message/style/css'
 import 'element-plus/es/components/message-box/style/css'
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { ApiError, apiRequest, setCsrfToken } from './api/client'
 import AuthDialog from './components/AuthDialog.vue'
-import BackupDialog from './components/BackupDialog.vue'
 import FolderTree from './components/FolderTree.vue'
-import ImportDialog from './components/ImportDialog.vue'
 import NodeEditor from './components/NodeEditor.vue'
 import { useNavigationStore } from './stores/navigation'
+
+// 管理工具仅在用户打开时加载，避免导入和备份组件增加首屏脚本体积。
+const BackupDialog = defineAsyncComponent(() => import('./components/BackupDialog.vue'))
+const ImportDialog = defineAsyncComponent(() => import('./components/ImportDialog.vue'))
 
 interface AuthStatus {
   initialized: boolean

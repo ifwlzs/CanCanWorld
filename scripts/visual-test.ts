@@ -64,7 +64,11 @@ async function run(): Promise<void> {
   await page.screenshot({ path: resolve(artifacts, '02-bookmarks-desktop.png'), fullPage: true })
 
   await page.getByRole('button', { name: '导入' }).click()
-  await page.locator('input[type="file"]').setInputFiles(resolve(import.meta.dirname, '../RunningCheese_Bookmarks_2026_05_06.html'))
+  const fileChooserPromise = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: '选择 HTML 文件', exact: true }).click()
+  const fileChooser = await fileChooserPromise
+  await fileChooser.setFiles(resolve(import.meta.dirname, '../RunningCheese_Bookmarks_2026_05_06.html'))
+  await page.getByText('RunningCheese_Bookmarks_2026_05_06.html', { exact: true }).waitFor()
   await page.getByRole('button', { name: '解析预览' }).click()
   await page.getByText('131', { exact: true }).waitFor({ timeout: 15000 })
   await page.getByText('507', { exact: true }).waitFor()
