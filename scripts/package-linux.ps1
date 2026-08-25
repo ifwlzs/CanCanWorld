@@ -54,13 +54,26 @@ Copy-Item -Path 'frontend/dist/*' -Destination (Join-Path $stage 'public') -Recu
 Copy-Item -Path 'backend/migrations/*' -Destination (Join-Path $stage 'migrations') -Force
 Copy-Item -LiteralPath '.env.example' -Destination (Join-Path $stage 'config/cancanworld.env.example') -Force
 Copy-Item -LiteralPath 'deploy/install.sh' -Destination (Join-Path $stage 'deploy/install.sh') -Force
+Copy-Item -LiteralPath 'deploy/docker-install.sh' -Destination (Join-Path $stage 'deploy/docker-install.sh') -Force
+Copy-Item -LiteralPath 'deploy/docker' -Destination (Join-Path $stage 'deploy/docker') -Recurse -Force
 Copy-Item -LiteralPath 'deploy/cancanworld.service' -Destination (Join-Path $stage 'deploy/cancanworld.service') -Force
 Copy-Item -LiteralPath 'deploy/nginx.conf' -Destination (Join-Path $stage 'deploy/nginx.conf') -Force
+Copy-Item -LiteralPath '.dockerignore' -Destination (Join-Path $stage '.dockerignore') -Force
 Copy-Item -LiteralPath 'README.md' -Destination (Join-Path $stage 'README.md') -Force
 [IO.File]::WriteAllText((Join-Path $stage 'VERSION'), "$Version`n", [Text.UTF8Encoding]::new($false))
 
 # PowerShell 在 Windows 上复制后统一校正 Linux 文本文件换行。
-foreach ($relativePath in @('deploy/install.sh', 'deploy/cancanworld.service', 'deploy/nginx.conf')) {
+# Docker 与 systemd 两套 Linux 入口都统一为 LF，避免服务器执行时出现解释器换行错误。
+foreach ($relativePath in @(
+  'deploy/install.sh',
+  'deploy/docker-install.sh',
+  'deploy/docker/entrypoint.sh',
+  'deploy/docker/Dockerfile',
+  'deploy/docker/nginx.conf',
+  'deploy/docker/compose.yaml',
+  'deploy/cancanworld.service',
+  'deploy/nginx.conf'
+)) {
   $path = Join-Path $stage $relativePath
   $content = [IO.File]::ReadAllText($path).Replace("`r`n", "`n")
   [IO.File]::WriteAllText($path, $content, [Text.UTF8Encoding]::new($false))

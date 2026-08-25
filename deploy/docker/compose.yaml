@@ -1,0 +1,52 @@
+name: cancanworld
+
+services:
+  cancanworld:
+    # 安装脚本构建带版本标签的本地镜像，升级时只替换此变量并重建容器。
+    image: ${CANCANWORLD_IMAGE:?请通过安装脚本生成 CANCANWORLD_IMAGE}
+    restart: unless-stopped
+    ports:
+      - "${CANCANWORLD_PORT:-3080}:3080"
+    env_file:
+      - ${CANCANWORLD_ENV_FILE:?请通过安装脚本生成 CANCANWORLD_ENV_FILE}
+    environment:
+      # 后端端口仅供同容器 Nginx 使用，不直接映射到宿主机。
+      SERVER_HOST: 127.0.0.1
+      SERVER_PORT: 3081
+      NODE_ENV: production
+    extra_hosts:
+      # 外部 MySQL 位于 Docker 宿主机时可使用 host.docker.internal。
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:3080/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 40s
+      retries: 4
+
+  mysql:
+    # 默认启用独立 MySQL 容器；使用外部数据库时安装脚本会关闭 bundled-db profile。
+    image: mysql:8.4
+    profiles: ["bundled-db"]
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?缺少 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DATABASE_NAME:?缺少 DATABASE_NAME}
+      MYSQL_USER: ${DATABASE_USER:?缺少 DATABASE_USER}
+      MYSQL_PASSWORD: ${DATABASE_PASSWORD:?缺少 DATABASE_PASSWORD}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    volumes:
+      # 命名卷在容器升级和删除后继续保留数据库数据。
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  # 除非部署者显式执行 docker volume rm，否则安装脚本不会删除该卷。
+  mysql_data:

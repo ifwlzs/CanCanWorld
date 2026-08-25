@@ -20,7 +20,29 @@ CanCanWorld 是以 OneNav 使用体验为功能基线、重新设计无限目录
 
 完整设计和验收规则见 [开发.md](./开发.md)。
 
-## Linux 打包部署
+## Docker 部署（推荐）
+
+Linux 发布包内置单容器 Web 运行时：Nginx 在容器内监听 `3080`，直接提供 Vue 前端，并将 `/api/` 转发给只监听容器回环地址的 Bun 后端。宿主机无需安装 Nginx、Bun 或 Node.js。
+
+目标服务器安装 Docker Engine 和 Docker Compose v2 后，解压发布包并运行交互式向导：
+
+```bash
+tar -xzf cancanworld-<版本>-linux-x64.tar.gz
+cd cancanworld-<版本>-linux-x64
+sudo bash ./deploy/docker-install.sh
+```
+
+向导默认将完整网站映射到宿主机 `3080` 端口，并启动独立的 MySQL 8 容器。MySQL 数据保存在 Compose 命名卷中，应用和数据库都使用 `restart: unless-stopped` 随 Docker 自动恢复。也可在向导中选择外部 MySQL；数据库位于 Docker 宿主机时使用 `host.docker.internal`。
+
+安装后通过固定入口管理容器：
+
+```bash
+sudo cancanworldctl
+```
+
+管理菜单提供安装/升级、启动、停止、重启、状态、实时日志、健康检查和删除容器；删除容器不会删除 MySQL 数据卷。所有文本输入支持 Delete、Backspace、方向键和 Home/End。
+
+## Linux 原生部署
 
 在安装 Bun 与 PowerShell 7（`pwsh`）的 Windows 构建机上生成 Linux x64 独立发布包，打包时自动执行完整质量门禁：
 
@@ -28,7 +50,7 @@ CanCanWorld 是以 OneNav 使用体验为功能基线、重新设计无限目录
 bun run package:linux
 ```
 
-产物位于 `release/cancanworld-<版本>-linux-x64.tar.gz`，旁边的 `.sha256` 文件用于传输校验。发布包包含独立后端、独立迁移器、前端静态文件、SQL 迁移、systemd 和 Nginx 配置；目标服务器无需安装 Node.js 或 Bun。
+产物位于 `release/cancanworld-<版本>-linux-x64.tar.gz`，旁边的 `.sha256` 文件用于传输校验。发布包包含独立后端、独立迁移器、前端静态文件、SQL 迁移、Docker 部署文件，以及可选的 systemd 和宿主机 Nginx 配置；目标服务器无需安装 Node.js 或 Bun。
 
 将发布包和生产环境文件上传到 Linux x64 服务器后执行：
 

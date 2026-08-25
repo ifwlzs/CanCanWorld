@@ -1,0 +1,11 @@
+# Docker 发布镜像只接收已经构建的运行文件，避免把源码、Git 元数据和生产配置发送给守护进程。
+**
+!bin/
+!bin/**
+!public/
+!public/**
+!migrations/
+!migrations/**
+!deploy/
+!deploy/docker/
+!deploy/docker/**
