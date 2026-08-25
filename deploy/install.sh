@@ -185,6 +185,10 @@ interactive_install() {
   [[ "$reuse_existing" -eq 1 ]] || command+=(--env-file "$temp_env")
   if "${command[@]}"; then
     echo "安装完成。以后可再次运行本脚本进入管理菜单。"
+    if [[ "$nginx_choice" -eq 0 ]]; then
+      # 后端只注册 API 路由；跳过 Nginx 时必须另行托管 public 静态文件，根路径不会显示前端。
+      echo "已跳过 Nginx：后端端口 ${server_port} 仅提供 API，根路径返回 40400；请启用 Nginx 或单独托管 public 目录。"
+    fi
   else
     local status="$?"
     [[ -z "$temp_env" ]] || rm -f "$temp_env"
@@ -433,6 +437,10 @@ for _ in {1..30}; do
     rm -rf "$BACKUP_DIR"
     echo "CanCanWorld $VERSION 部署成功"
     echo "健康检查：$HEALTH_URL"
+    if [[ "$SKIP_NGINX" -eq 1 ]]; then
+      # --skip-nginx 不会把 Vue 静态文件交给 Bun 提供，避免用户误把 API 根路径当作前端地址。
+      echo "提示：已跳过 Nginx，${SERVER_PORT} 端口仅提供 API；前端需启用 Nginx 或单独托管 current/public。"
+    fi
     exit 0
   fi
   sleep 1

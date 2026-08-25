@@ -43,4 +43,10 @@ describe('Linux 交互式部署脚本', () => {
     expect(installer).not.toMatch(/read -r -p/)
     expect(installer).not.toMatch(/read -r -s -p/)
   })
+
+  it('跳过 Nginx 时明确提示后端根路径只提供 API', async () => {
+    const installer = await readInstaller()
+    expect(installer).toContain('后端端口 ${server_port} 仅提供 API')
+    expect(installer).toContain('前端需启用 Nginx 或单独托管 current/public')
+  })
 })
