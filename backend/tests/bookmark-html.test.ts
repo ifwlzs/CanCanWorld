@@ -1,10 +1,14 @@
 import { readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { cleanGroupTitle, normalizeGroups, parseBookmarkHtml } from '../src/parsers/bookmark-html.js'
 import type { ImportStats } from '@cancanworld/contracts'
 
 const limits = { maxFileBytes: 10 * 1024 * 1024, maxNodes: 100000, maxDepth: 256 }
+const realSamplePath = resolve(import.meta.dirname, '../../RunningCheese_Bookmarks_2026_05_06.html')
+// 真实书签包含个人数据且不会提交；本机存在时执行基准，CI 依靠始终执行的合成用例覆盖解析规则。
+const realSampleTest = existsSync(realSamplePath) ? it : it.skip
 
 /** 创建空统计供纯规范化单元测试使用。 */
 function emptyStats(): ImportStats {
@@ -49,9 +53,8 @@ describe('浏览器书签 HTML 解析', () => {
     expect(cleanGroupTitle('────────────')).toBe('')
   })
 
-  it('真实样本满足预审统计并完整保留超长 JavaScript 书签', async () => {
-    const path = resolve(import.meta.dirname, '../../RunningCheese_Bookmarks_2026_05_06.html')
-    const parsed = parseBookmarkHtml(await readFile(path, 'utf8'), limits)
+  realSampleTest('真实样本满足预审统计并完整保留超长 JavaScript 书签', async () => {
+    const parsed = parseBookmarkHtml(await readFile(realSamplePath, 'utf8'), limits)
     expect(parsed.stats.sourceFolders).toBe(270)
     expect(parsed.stats.generatedFolders).toBe(507)
     expect(parsed.stats.javascriptBookmarks).toBe(131)
