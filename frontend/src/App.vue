@@ -54,6 +54,7 @@ const draggedNode = ref<NavigationNode | null>(null)
 const checkJob = ref<{ id: string; status: string; total: number; processed: number } | null>(null)
 
 const pageTitle = computed(() => navigation.currentFolder?.title ?? '全部书签')
+const pagePath = computed(() => navigation.currentFolderPath.length ? navigation.currentFolderPath.join(' / ') : '全部书签')
 
 /** 初始化时先同步会话，再按当前权限加载后端已经过滤的节点树。 */
 async function initialize(): Promise<void> {
@@ -246,7 +247,7 @@ onMounted(async () => {
     <main class="workspace">
       <div class="workspace-header">
         <div>
-          <p class="eyebrow">{{ navigation.searchResults ? '搜索结果' : '当前目录' }}</p>
+          <p class="eyebrow">{{ navigation.searchResults ? `搜索结果 · ${pagePath}` : pagePath }}</p>
           <h1>{{ pageTitle }}</h1>
         </div>
         <div v-if="auth.authenticated" class="workspace-actions">
@@ -297,12 +298,18 @@ onMounted(async () => {
               <Wrench v-else-if="node.bookmarkType === 'javascript'" :size="20" />
               <Bookmark v-else :size="20" />
             </button>
-            <div class="node-copy">
+            <component
+              :is="node.nodeType === 'folder' ? 'button' : 'div'"
+              class="node-copy"
+              :class="{ 'is-folder': node.nodeType === 'folder' }"
+              :type="node.nodeType === 'folder' ? 'button' : undefined"
+              @click="node.nodeType === 'folder' ? navigation.selectFolder(node.id) : undefined"
+            >
               <strong>{{ node.title }}</strong>
               <span v-if="node.fullPath?.length" class="node-path">{{ node.fullPath.join(' / ') }}</span>
               <span v-if="node.url">{{ node.bookmarkType === 'javascript' ? 'JavaScript 书签' : node.url }}</span>
               <span v-else>{{ node.children?.length ?? 0 }} 个节点</span>
-            </div>
+            </component>
             <div class="node-meta">
               <el-tag v-if="node.visibility === 'private'" size="small" effect="plain">私有</el-tag>
               <el-tag v-for="tag in node.tags.slice(0, 2)" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>

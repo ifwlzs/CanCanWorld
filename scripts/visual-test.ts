@@ -56,12 +56,29 @@ async function run(): Promise<void> {
     const response = await context.request.post('http://localhost:3080/api/v1/nodes', { headers, data })
     if (!response.ok()) throw new Error(`创建视觉测试节点失败：${response.status()}`)
   }
+  const nestedFolderResponse = await context.request.post('http://localhost:3080/api/v1/nodes', {
+    headers,
+    data: { parentId: folderId, nodeType: 'folder', title: '深层目录', url: null, description: null, iconUrl: null, visibility: 'private', tags: [] }
+  })
+  if (!nestedFolderResponse.ok()) throw new Error(`创建视觉测试深层目录失败：${nestedFolderResponse.status()}`)
+  const nestedFolderId = (await nestedFolderResponse.json()).data.id as number
+  const nestedBookmarkResponse = await context.request.post('http://localhost:3080/api/v1/nodes', {
+    headers,
+    data: { parentId: nestedFolderId, nodeType: 'bookmark', title: '深层书签', url: 'https://example.com/nested', description: null, iconUrl: null, visibility: 'private', tags: [] }
+  })
+  if (!nestedBookmarkResponse.ok()) throw new Error(`创建视觉测试深层书签失败：${nestedBookmarkResponse.status()}`)
 
   await page.reload({ waitUntil: 'networkidle' })
   await page.getByRole('button', { name: rootTitle, exact: true }).click()
   await page.getByText('CanCanWorld 文档', { exact: true }).waitFor()
   await assertNoHorizontalOverflow(page)
   await page.screenshot({ path: resolve(artifacts, '02-bookmarks-desktop.png'), fullPage: true })
+
+  await page.locator('.node-list').getByText('深层目录', { exact: true }).click()
+  await page.getByText(`${rootTitle} / 深层目录`, { exact: true }).waitFor()
+  await page.getByText('深层书签', { exact: true }).waitFor()
+  await page.getByRole('button', { name: rootTitle, exact: true }).click()
+  await page.getByText('CanCanWorld 文档', { exact: true }).waitFor()
 
   await page.getByRole('button', { name: '导入' }).click()
   const fileChooserPromise = page.waitForEvent('filechooser')

@@ -12,6 +12,7 @@ export const useNavigationStore = defineStore('navigation', () => {
   const searchResults = ref<NavigationNode[] | null>(null)
 
   const currentFolder = computed(() => findNode(tree.value, selectedFolderId.value))
+  const currentFolderPath = computed(() => selectedFolderId.value === 1 ? [] : findNodePath(tree.value, selectedFolderId.value)?.map((node) => node.title) ?? [])
   const visibleNodes = computed(() => searchResults.value ?? currentFolder.value?.children ?? tree.value)
 
   /** 递归查找仅用于已加载的展示树，后端仍是目录权限和完整性的事实来源。 */
@@ -19,6 +20,17 @@ export const useNavigationStore = defineStore('navigation', () => {
     for (const node of nodes) {
       if (node.id === id) return node
       const nested = node.children ? findNode(node.children, id) : undefined
+      if (nested) return nested
+    }
+    return undefined
+  }
+
+  /** 递归返回当前目录的完整节点链，用于区分导入后出现的同名嵌套目录。 */
+  function findNodePath(nodes: NavigationNode[], id: number, ancestors: NavigationNode[] = []): NavigationNode[] | undefined {
+    for (const node of nodes) {
+      const path = [...ancestors, node]
+      if (node.id === id) return path
+      const nested = node.children ? findNodePath(node.children, id, path) : undefined
       if (nested) return nested
     }
     return undefined
@@ -91,6 +103,7 @@ export const useNavigationStore = defineStore('navigation', () => {
     loading,
     searchResults,
     currentFolder,
+    currentFolderPath,
     visibleNodes,
     loadTree,
     selectFolder,
