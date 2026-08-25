@@ -1,0 +1,9 @@
+{
+  // 后端由 Bun 直接执行源码，类型检查不生成文件。
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun", "node"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+}

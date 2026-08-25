@@ -1,0 +1,22 @@
+# 依赖与构建产物由包管理器和构建流程生成，不进入版本库。
+node_modules/
+dist/
+coverage/
+artifacts/
+*.tsbuildinfo
+
+# 本地环境包含数据库和会话密钥，只提交示例文件。
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# 个人书签样本和编辑器日志可能包含隐私数据。
+RunningCheese_Bookmarks_2026_05_06.html
+Typora_Hook_Log.txt
+
+# 操作系统和编辑器临时文件。
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

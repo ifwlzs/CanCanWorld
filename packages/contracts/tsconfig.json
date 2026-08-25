@@ -1,0 +1,12 @@
+{
+  // 契约包同时生成 JavaScript 和声明文件，供 Bun 后端与 Vue 前端共同消费。
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*.ts"]
+}

@@ -1,0 +1,9 @@
+{
+  // 独立验证脚本复用后端模块，并使用 Bun 与 Node 的运行时类型。
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun", "node"],
+    "noEmit": true
+  },
+  "include": ["backend/scripts/**/*.ts", "scripts/**/*.ts"]
+}

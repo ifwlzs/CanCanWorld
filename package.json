@@ -1,0 +1,28 @@
+{
+  "name": "cancanworld",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "bun@1.4.0",
+  "workspaces": [
+    "backend",
+    "frontend",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@types/bun": "^1.2.21",
+    "@types/node": "^24.3.0",
+    "mysql2": "^3.14.4",
+    "playwright": "^1.62.1",
+    "typescript": "^5.9.2"
+  },
+  "scripts": {
+    "dev": "bun --filter @cancanworld/contracts build && bun run --parallel --filter @cancanworld/backend --filter @cancanworld/frontend dev",
+    "dev:backend": "bun --filter @cancanworld/contracts build && bun --filter @cancanworld/backend dev",
+    "dev:frontend": "bun --filter @cancanworld/contracts build && bun --filter @cancanworld/frontend dev",
+    "build": "bun --filter '*' build",
+    "typecheck": "bun --filter @cancanworld/contracts build && bun --filter '*' typecheck && tsc -p tsconfig.scripts.json --noEmit",
+    "test": "bun --filter @cancanworld/backend test",
+    "check": "bun run typecheck && bun run test && bun run build",
+    "db:migrate": "bun --filter @cancanworld/backend db:migrate"
+  }
+}

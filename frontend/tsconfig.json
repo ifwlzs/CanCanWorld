@@ -1,0 +1,9 @@
+{
+  // Vue 源码严格检查，Vite 负责实际转译和打包。
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"]
+}
