@@ -13,6 +13,7 @@ artifacts/
 
 # 个人书签样本和编辑器日志可能包含隐私数据。
 RunningCheese_Bookmarks_2026_05_06.html
+*.db3
 Typora_Hook_Log.txt
 
 # 操作系统和编辑器临时文件。
