@@ -12,7 +12,7 @@ function emptyStats(): ImportStats {
 }
 
 describe('浏览器书签 HTML 解析', () => {
-  it('区分 JavaScript、带标题分组和纯视觉分割线', () => {
+  it('区分 JavaScript 和带标题分组，并忽略纯视觉横线', () => {
     const html = `<!doctype NETSCAPE-Bookmark-file-1><DL><p>
       <DT><H3>工具</H3><DL><p>
         <DT><A HREF="https://separator.mayastudios.com/index.php?t=horz">──── 图片工具 ────</A>
@@ -25,7 +25,7 @@ describe('浏览器书签 HTML 解析', () => {
     const folder = parsed.nodes[0]
     expect(folder?.type).toBe('folder')
     expect(folder?.children?.[0]?.title).toBe('图片工具')
-    expect(folder?.children?.[0]?.children?.map((node) => node.type)).toEqual(['bookmark', 'bookmark', 'separator'])
+    expect(folder?.children?.[0]?.children?.map((node) => node.type)).toEqual(['bookmark', 'bookmark'])
     expect(parsed.stats).toMatchObject({ sourceFolders: 1, generatedFolders: 1, bookmarks: 2, javascriptBookmarks: 1, separators: 1, sourceSeparatorNodes: 2 })
   })
 
@@ -57,6 +57,19 @@ describe('浏览器书签 HTML 解析', () => {
     expect(parsed.stats.javascriptBookmarks).toBe(131)
     expect(parsed.stats.separators).toBe(189)
     expect(parsed.stats.sourceSeparatorNodes).toBe(696)
+
+    const countTypes = (nodes: typeof parsed.nodes): Record<string, number> => {
+      const counts: Record<string, number> = {}
+      const visit = (items: typeof parsed.nodes): void => {
+        for (const node of items) {
+          counts[node.type] = (counts[node.type] ?? 0) + 1
+          if (node.children) visit(node.children)
+        }
+      }
+      visit(nodes)
+      return counts
+    }
+    expect(countTypes(parsed.nodes).separator ?? 0).toBe(0)
 
     const urls: string[] = []
     const collect = (nodes: typeof parsed.nodes): void => {

@@ -13,7 +13,7 @@ ${body}</DL><p>
 `
 }
 
-/** 递归保持统一节点树中的同级混合顺序。 */
+/** 递归保持目录和书签的同级顺序，历史分割线节点不会导出。 */
 function serializeNodes(nodes: NavigationNode[], depth: number): string {
   const indent = '    '.repeat(depth)
   let html = ''
@@ -21,8 +21,6 @@ function serializeNodes(nodes: NavigationNode[], depth: number): string {
     if (node.nodeType === 'folder') {
       html += `${indent}<DT><H3>${escapeText(node.title)}</H3>\n`
       html += `${indent}<DL><p>\n${serializeNodes(node.children ?? [], depth + 1)}${indent}</DL><p>\n`
-    } else if (node.nodeType === 'separator') {
-      html += `${indent}<DT><HR>\n`
     } else if (node.nodeType === 'bookmark' && node.url) {
       html += `${indent}<DT><A HREF="${escapeAttribute(node.url)}">${escapeText(node.title)}</A>\n`
       if (node.description) html += `${indent}<DD>${escapeText(node.description)}\n`

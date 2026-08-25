@@ -12,18 +12,18 @@ function node(input: Partial<NavigationNode> & Pick<NavigationNode, 'id' | 'node
 }
 
 describe('Netscape HTML 导出', () => {
-  it('保持目录、分割线、普通 URL 和 JavaScript 原文', () => {
+  it('保持目录、普通 URL 和 JavaScript 原文', () => {
     const script = `javascript:(function(){const x="<&";alert(x)})()`
     const html = exportBookmarkHtml([
       node({ id: 2, nodeType: 'folder', title: '工具 & 开发', children: [
         node({ id: 3, parentId: 2, nodeType: 'bookmark', title: '脚本 <测试>', url: script, bookmarkType: 'javascript' }),
-        node({ id: 4, parentId: 2, nodeType: 'separator', title: '' }),
         node({ id: 5, parentId: 2, nodeType: 'bookmark', title: '示例', url: 'https://example.com/?a=1&b=2', bookmarkType: 'url' })
       ] })
     ])
     const parsed = parseBookmarkHtml(html, { maxFileBytes: 1024 * 1024, maxNodes: 100, maxDepth: 10 })
     expect(parsed.nodes[0]?.title).toBe('工具 & 开发')
     expect(parsed.nodes[0]?.children?.[0]?.url).toBe(script)
-    expect(parsed.nodes[0]?.children?.map((item) => item.type)).toEqual(['bookmark', 'separator', 'bookmark'])
+    expect(parsed.nodes[0]?.children?.map((item) => item.type)).toEqual(['bookmark', 'bookmark'])
+    expect(html).not.toContain('<HR>')
   })
 })

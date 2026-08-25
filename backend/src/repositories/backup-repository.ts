@@ -66,7 +66,7 @@ export class BackupRepository {
   constructor(private readonly pool: Pool) {}
 
   async create(type: 'manual' | 'before_restore' = 'manual'): Promise<Record<string, unknown>> {
-    const [nodes] = await this.pool.query<RowDataPacket[]>('SELECT * FROM navigation_node WHERE id <> 1 ORDER BY id')
+    const [nodes] = await this.pool.query<RowDataPacket[]>("SELECT * FROM navigation_node WHERE id <> 1 AND node_type <> 'separator' ORDER BY id")
     const [tags] = await this.pool.query<RowDataPacket[]>('SELECT * FROM tag ORDER BY id')
     const [nodeTags] = await this.pool.query<RowDataPacket[]>('SELECT * FROM node_tag ORDER BY node_id, tag_id')
     const [settings] = await this.pool.query<RowDataPacket[]>('SELECT * FROM app_setting ORDER BY setting_key')
@@ -123,7 +123,9 @@ export class BackupRepository {
       for (const node of existingNodes) await connection.execute('DELETE FROM navigation_node WHERE id = ?', [node.id])
       await connection.query('DELETE FROM app_setting')
 
-      for (const node of payload.nodes) {
+      const restoredNodes = payload.nodes.filter((node) => node.node_type !== 'separator')
+      const restoredNodeIds = new Set(restoredNodes.map((node) => String(node.id)))
+      for (const node of restoredNodes) {
         await connection.execute(`
           INSERT INTO navigation_node (
             id, parent_id, node_type, title, url, url_hash, description, icon_url, sort_key,
@@ -138,10 +140,12 @@ export class BackupRepository {
         ])
       }
       for (const tag of payload.tags) await connection.execute('INSERT INTO tag (id, name, normalized_name, created_at) VALUES (?, ?, ?, ?)', [tag.id, tag.name, tag.normalized_name, dateValue(tag.created_at)])
-      for (const relation of payload.nodeTags) await connection.execute('INSERT INTO node_tag (node_id, tag_id) VALUES (?, ?)', [relation.node_id, relation.tag_id])
+      for (const relation of payload.nodeTags.filter((item) => restoredNodeIds.has(String(item.node_id)))) {
+        await connection.execute('INSERT INTO node_tag (node_id, tag_id) VALUES (?, ?)', [relation.node_id, relation.tag_id])
+      }
       for (const setting of payload.settings) await connection.execute('INSERT INTO app_setting (setting_key, setting_value, updated_at) VALUES (?, ?, ?)', [setting.setting_key, setting.setting_value, dateValue(setting.updated_at)])
       await connection.commit()
-      return { safetyBackupId: String(safety.id), restoredNodes: payload.nodes.length }
+      return { safetyBackupId: String(safety.id), restoredNodes: restoredNodes.length }
     } catch (error) {
       await connection.rollback()
       throw error

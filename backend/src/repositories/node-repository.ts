@@ -255,9 +255,10 @@ export class NodeRepository {
 
 /** 统一节点形状约束在写入前执行，数据库 CHECK 作为第二道防线。 */
 function validateNodeShape(type: string, title: string, url: string | null): void {
-  if (type !== 'separator' && title.trim().length === 0) throw new AppError(422, 42205, '目录和书签名称不能为空')
+  if (!['folder', 'bookmark'].includes(type)) throw new AppError(422, 42211, '只允许创建目录或书签')
+  if (title.trim().length === 0) throw new AppError(422, 42205, '目录和书签名称不能为空')
   if (type === 'bookmark' && !url) throw new AppError(422, 42206, '书签地址不能为空')
-  if (type !== 'bookmark' && url !== null) throw new AppError(422, 42207, '目录和分割线不能包含 URL')
+  if (type !== 'bookmark' && url !== null) throw new AppError(422, 42207, '目录不能包含 URL')
 }
 
 /** 标签在事务内规范化、插入并替换关联。 */

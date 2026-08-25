@@ -35,8 +35,7 @@ export function parseBookmarkHtml(html: string, limits: BookmarkParseLimits): Pa
     const result: RawImportNode[] = []
     for (const child of dl.childNodes) {
       if (isElement(child, 'hr')) {
-        const source = makeSource(++nodeIndex, child, path)
-        result.push({ type: 'separator', title: '', source })
+        nodeIndex++
         stats.separators++
         stats.sourceSeparatorNodes++
         continue
@@ -79,11 +78,7 @@ export function parseBookmarkHtml(html: string, limits: BookmarkParseLimits): Pa
               source: { ...source, originalTitle: title, originalUrl: url, generatedFromGroup: true }
             })
           } else {
-            result.push({
-              type: 'separator',
-              title: '',
-              source: { ...source, originalTitle: title, originalUrl: url }
-            })
+            // 纯横线只计入导入统计，不进入预览和数据库节点树。
             stats.separators++
           }
           continue
@@ -97,13 +92,12 @@ export function parseBookmarkHtml(html: string, limits: BookmarkParseLimits): Pa
 
       const hr = findDirectContentElement(child, 'hr')
       if (hr) {
-        result.push({ type: 'separator', title: '', source })
         stats.separators++
         stats.sourceSeparatorNodes++
         continue
       }
 
-      issues.push(makeIssue(source, '', 'UNSUPPORTED_NODE', '节点既不是目录、书签也不是分割线'))
+      issues.push(makeIssue(source, '', 'UNSUPPORTED_NODE', '节点既不是目录也不是书签'))
       stats.failed++
     }
     return result

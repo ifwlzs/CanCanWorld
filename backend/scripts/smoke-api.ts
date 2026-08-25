@@ -103,9 +103,9 @@ async function run(): Promise<void> {
   const convertedPreview = await request<{ stats: { generatedFolders: number; separators: number } }>(`/import/${smallPreview.jobId}/groups/3`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ type: 'separator' })
+    body: JSON.stringify({ type: 'bookmark' })
   })
-  if (convertedPreview.stats.generatedFolders !== 1 || convertedPreview.stats.separators !== 1) throw new Error('分组标记转换后的统计异常')
+  if (convertedPreview.stats.generatedFolders !== 1 || convertedPreview.stats.separators !== 0) throw new Error('分组标记转换后的统计异常')
   const confirmed = await request<{ inserted: number; skipped: number }>(`/import/${smallPreview.jobId}/confirm`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID() },

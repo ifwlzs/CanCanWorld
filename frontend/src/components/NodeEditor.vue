@@ -6,7 +6,7 @@ const props = defineProps<{
   modelValue: boolean
   parentId: number
   node?: NavigationNode | null
-  initialType?: 'folder' | 'bookmark' | 'separator'
+  initialType?: 'folder' | 'bookmark'
 }>()
 
 const emit = defineEmits<{
@@ -31,7 +31,7 @@ const title = computed(() => props.node ? '编辑节点' : '新建节点')
 watch(() => props.modelValue, (open) => {
   if (!open) return
   form.parentId = props.node?.parentId ?? props.parentId
-  form.nodeType = props.node && props.node.nodeType !== 'root' ? props.node.nodeType : (props.initialType ?? 'bookmark')
+  form.nodeType = props.node?.nodeType === 'folder' || props.node?.nodeType === 'bookmark' ? props.node.nodeType : (props.initialType ?? 'bookmark')
   form.title = props.node?.title ?? ''
   form.url = props.node?.url ?? null
   form.description = props.node?.description ?? null
@@ -40,15 +40,8 @@ watch(() => props.modelValue, (open) => {
   form.tags = [...(props.node?.tags ?? [])]
 }, { immediate: true })
 
-/** 分隔线自动清空不适用字段，最终交叉校验仍由后端负责。 */
+/** 目录自动清空 URL，最终交叉校验仍由后端负责。 */
 function submit(): void {
-  if (form.nodeType === 'separator') {
-    form.title = ''
-    form.url = null
-    form.description = null
-    form.iconUrl = null
-    form.tags = []
-  }
   if (form.nodeType === 'folder') form.url = null
   emit('submit', { ...form, tags: [...form.tags] })
 }
@@ -60,30 +53,27 @@ function submit(): void {
       <el-form-item label="类型">
         <el-segmented v-model="form.nodeType" :options="[
           { label: '书签', value: 'bookmark' },
-          { label: '目录', value: 'folder' },
-          { label: '分割线', value: 'separator' }
+          { label: '目录', value: 'folder' }
         ]" />
       </el-form-item>
-      <template v-if="form.nodeType !== 'separator'">
-        <el-form-item label="名称" required>
-          <el-input v-model="form.title" maxlength="512" show-word-limit />
-        </el-form-item>
-        <el-form-item v-if="form.nodeType === 'bookmark'" label="地址" required>
-          <el-input v-model="form.url" type="textarea" :rows="3" />
-        </el-form-item>
-        <el-form-item v-if="form.nodeType === 'bookmark'" label="描述">
-          <el-input v-model="form.description" type="textarea" :rows="2" maxlength="10000" />
-        </el-form-item>
-        <el-form-item v-if="form.nodeType === 'bookmark'" label="标签">
-          <el-select v-model="form.tags" multiple filterable allow-create default-first-option />
-        </el-form-item>
-        <el-form-item label="可见性">
-          <el-segmented v-model="form.visibility" :options="[
-            { label: '公开', value: 'public' },
-            { label: '私有', value: 'private' }
-          ]" />
-        </el-form-item>
-      </template>
+      <el-form-item label="名称" required>
+        <el-input v-model="form.title" maxlength="512" show-word-limit />
+      </el-form-item>
+      <el-form-item v-if="form.nodeType === 'bookmark'" label="地址" required>
+        <el-input v-model="form.url" type="textarea" :rows="3" />
+      </el-form-item>
+      <el-form-item v-if="form.nodeType === 'bookmark'" label="描述">
+        <el-input v-model="form.description" type="textarea" :rows="2" maxlength="10000" />
+      </el-form-item>
+      <el-form-item v-if="form.nodeType === 'bookmark'" label="标签">
+        <el-select v-model="form.tags" multiple filterable allow-create default-first-option />
+      </el-form-item>
+      <el-form-item label="可见性">
+        <el-segmented v-model="form.visibility" :options="[
+          { label: '公开', value: 'public' },
+          { label: '私有', value: 'private' }
+        ]" />
+      </el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>

@@ -48,7 +48,7 @@ const importOpen = ref(false)
 const backupOpen = ref(false)
 const sidebarOpen = ref(false)
 const editingNode = ref<NavigationNode | null>(null)
-const initialType = ref<'folder' | 'bookmark' | 'separator'>('bookmark')
+const initialType = ref<'folder' | 'bookmark'>('bookmark')
 const theme = ref<'default' | 'compact' | 'bookmark'>('default')
 const draggedNode = ref<NavigationNode | null>(null)
 const checkJob = ref<{ id: string; status: string; total: number; processed: number } | null>(null)
@@ -82,7 +82,7 @@ async function logout(): Promise<void> {
 }
 
 /** 打开新建或编辑对话框，节点类型由触发按钮决定。 */
-function openEditor(type: 'folder' | 'bookmark' | 'separator', node: NavigationNode | null = null): void {
+function openEditor(type: 'folder' | 'bookmark', node: NavigationNode | null = null): void {
   initialType.value = type
   editingNode.value = node
   editorOpen.value = true
@@ -102,7 +102,7 @@ async function saveNode(input: CreateNodeInput): Promise<void> {
 /** 非空目录由后端返回冲突后再显式确认级联删除。 */
 async function removeNode(node: NavigationNode): Promise<void> {
   try {
-    await ElMessageBox.confirm(`确认删除“${node.title || '分割线'}”？`, '删除节点', { type: 'warning' })
+    await ElMessageBox.confirm(`确认删除“${node.title}”？`, '删除节点', { type: 'warning' })
   } catch {
     return
   }
@@ -257,7 +257,6 @@ onMounted(async () => {
               <el-dropdown-menu>
                 <el-dropdown-item command="bookmark"><Bookmark :size="15" />书签</el-dropdown-item>
                 <el-dropdown-item command="folder"><Folder :size="15" />目录</el-dropdown-item>
-                <el-dropdown-item command="separator">分割线</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -282,10 +281,8 @@ onMounted(async () => {
       </div>
 
       <div v-loading="navigation.loading" class="node-list">
-        <template v-for="node in navigation.visibleNodes" :key="node.id">
-          <div v-if="node.nodeType === 'separator'" class="separator-row"><span /></div>
+        <template v-for="node in navigation.visibleNodes.filter((item) => item.nodeType !== 'separator')" :key="node.id">
           <article
-            v-else
             class="node-row"
             :draggable="auth.authenticated"
             @dragstart="draggedNode = node; $event.dataTransfer?.setData('application/x-cancanworld-node', String(node.id))"
@@ -331,7 +328,7 @@ onMounted(async () => {
               <button class="icon-button" type="button" aria-label="更多操作"><MoreHorizontal :size="18" /></button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item @click="openEditor(node.nodeType === 'root' ? 'folder' : node.nodeType, node)">编辑</el-dropdown-item>
+                  <el-dropdown-item @click="openEditor(node.nodeType === 'folder' ? 'folder' : 'bookmark', node)">编辑</el-dropdown-item>
                   <el-dropdown-item v-if="node.nodeType === 'bookmark' && node.bookmarkType === 'url'" @click="runChecks(node.id)"><Activity :size="15" />检测链接</el-dropdown-item>
                   <el-dropdown-item divided @click="removeNode(node)">删除</el-dropdown-item>
                 </el-dropdown-menu>

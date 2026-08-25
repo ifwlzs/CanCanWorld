@@ -56,7 +56,7 @@ export const navigationNodeSchema: z.ZodType<NavigationNode> = z.object({
 /** 新建节点的字段按节点类型进行后端交叉校验。 */
 export const createNodeSchema = z.object({
   parentId: z.number().int().positive().default(1),
-  nodeType: z.enum(['folder', 'bookmark', 'separator']),
+  nodeType: z.enum(['folder', 'bookmark']),
   title: z.string().trim().max(512).default(''),
   url: z.string().max(1_000_000).nullable().default(null),
   description: z.string().max(10_000).nullable().default(null),
@@ -99,7 +99,7 @@ export interface ApiEnvelope<T> {
 /** 后台任务状态适用于导入确认和链接批量检测。 */
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
 
-/** 导入统计区分原始目录、生成分组目录和纯视觉分割线。 */
+/** 导入统计区分原始目录、生成分组目录和被忽略的纯横线来源节点。 */
 export interface ImportStats {
   sourceFolders: number
   generatedFolders: number
@@ -121,9 +121,9 @@ export interface ImportIssue {
   reason: string
 }
 
-/** 导入预览节点尚未分配数据库主键，只表达最终层级和原始来源。 */
+/** 导入预览只包含会实际落库的目录和书签，纯横线节点在解析时丢弃。 */
 export interface ImportPreviewNode {
-  type: 'folder' | 'bookmark' | 'separator'
+  type: 'folder' | 'bookmark'
   title: string
   url?: string
   bookmarkType?: 'url' | 'javascript'
@@ -149,7 +149,6 @@ export interface ImportPreview {
 /** 只有分组标记生成的目录允许在确认前重命名或转换，普通导入节点保持原样。 */
 export const importGroupOverrideSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('folder'), title: z.string().trim().min(1).max(512) }),
-  z.object({ type: z.literal('bookmark') }),
-  z.object({ type: z.literal('separator') })
+  z.object({ type: z.literal('bookmark') })
 ])
 export type ImportGroupOverride = z.infer<typeof importGroupOverrideSchema>

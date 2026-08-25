@@ -118,19 +118,15 @@ function replaceGeneratedGroup(nodes: ImportPreviewNode[], nodeIndex: number, ov
         result.push({ ...node, title: override.title })
       } else {
         const promoted = node.children ?? []
-        if (override.type === 'bookmark') {
-          const url = node.source.originalUrl
-          if (!url) throw new AppError(409, 40910, '原始分组标记缺少 URL，无法转换为书签')
-          result.push({
-            type: 'bookmark',
-            title: node.source.originalTitle?.trim() || url,
-            url,
-            bookmarkType: 'url',
-            source: { ...node.source, generatedFromGroup: false }
-          })
-        } else {
-          result.push({ type: 'separator', title: '', source: { ...node.source, generatedFromGroup: false } })
-        }
+        const url = node.source.originalUrl
+        if (!url) throw new AppError(409, 40910, '原始分组标记缺少 URL，无法转换为书签')
+        result.push({
+          type: 'bookmark',
+          title: node.source.originalTitle?.trim() || url,
+          url,
+          bookmarkType: 'url',
+          source: { ...node.source, generatedFromGroup: false }
+        })
         result.push(...promoted)
       }
       continue
@@ -151,7 +147,7 @@ function replaceGeneratedGroup(nodes: ImportPreviewNode[], nodeIndex: number, ov
 
 /** 覆盖操作后从最终树重新计算可变统计，原始目录和源分割线计数保持解析基线。 */
 function recountPreviewStats(nodes: ImportPreviewNode[], baseline: ImportStats): ImportStats {
-  const stats: ImportStats = { ...baseline, generatedFolders: 0, bookmarks: 0, javascriptBookmarks: 0, separators: 0 }
+  const stats: ImportStats = { ...baseline, generatedFolders: 0, bookmarks: 0, javascriptBookmarks: 0 }
   const visit = (items: ImportPreviewNode[]): void => {
     for (const node of items) {
       if (node.type === 'folder') {
@@ -160,8 +156,6 @@ function recountPreviewStats(nodes: ImportPreviewNode[], baseline: ImportStats):
       } else if (node.type === 'bookmark') {
         stats.bookmarks++
         if (node.bookmarkType === 'javascript') stats.javascriptBookmarks++
-      } else {
-        stats.separators++
       }
     }
   }

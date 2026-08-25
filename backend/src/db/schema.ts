@@ -33,7 +33,7 @@ export const appSessions = mysqlTable('app_session', {
   createdAt: datetime('created_at', { mode: 'date', fsp: 3 }).notNull()
 }, (table) => [uniqueIndex('uk_app_session_token_hash').on(table.tokenHash), index('idx_app_session_expires_at').on(table.expiresAt)])
 
-/** 统一节点表确保目录、书签与分割线共享同一套父子关系和排序。 */
+/** 统一节点表保存目录和书签；separator 枚举仅兼容旧迁移，业务层不再创建。 */
 export const navigationNodes = mysqlTable('navigation_node', {
   id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey(),
   parentId: bigint('parent_id', { mode: 'number', unsigned: true }),

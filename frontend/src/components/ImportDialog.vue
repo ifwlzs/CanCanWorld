@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ImportGroupOverride, ImportPreview, ImportPreviewNode } from '@cancanworld/contracts'
-import { FileUp, Link, Minus, Pencil, Upload } from 'lucide-vue-next'
+import { FileUp, Link, Pencil, Upload } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, ref, watch } from 'vue'
 import { apiRequest } from '../api/client'
@@ -31,7 +31,7 @@ interface PreviewTreeItem {
 
 /** 预览树只包含展示字段，JavaScript 原文和 URL 不进入树标签。 */
 function toTreeItem(node: ImportPreviewNode): PreviewTreeItem {
-  const label = node.type === 'separator' ? '分割线' : `${node.type === 'folder' ? '目录' : node.bookmarkType === 'javascript' ? 'JavaScript' : '书签'}：${node.title}`
+  const label = `${node.type === 'folder' ? '目录' : node.bookmarkType === 'javascript' ? 'JavaScript' : '书签'}：${node.title}`
   const item = {
     key: `${node.source.nodeIndex}:${node.type}`,
     label,
@@ -120,11 +120,10 @@ async function renameGroup(item: PreviewTreeItem): Promise<void> {
 }
 
 /** 转换分组标记会把其子节点提升到当前层级，确认框明确展示结构影响。 */
-async function convertGroup(item: PreviewTreeItem, type: 'bookmark' | 'separator'): Promise<void> {
+async function convertGroup(item: PreviewTreeItem): Promise<void> {
   try {
-    const label = type === 'bookmark' ? '普通书签' : '分割线'
-    await ElMessageBox.confirm(`转换为${label}后，组内节点将提升到同级。`, `转换“${item.title}”`, { type: 'warning' })
-    await applyGroupOverride(item.sourceIndex, { type })
+    await ElMessageBox.confirm('转换为普通书签后，组内节点将提升到同级。', `转换“${item.title}”`, { type: 'warning' })
+    await applyGroupOverride(item.sourceIndex, { type: 'bookmark' })
   } catch (error) {
     if (!isMessageBoxCancellation(error)) ElMessage.error(error instanceof Error ? error.message : '分组转换失败')
   }
@@ -168,7 +167,7 @@ watch(() => props.modelValue, (open) => {
         <div><strong>{{ summary?.generatedFolders }}</strong><span>分组目录</span></div>
         <div><strong>{{ summary?.bookmarks }}</strong><span>书签</span></div>
         <div><strong>{{ summary?.javascriptBookmarks }}</strong><span>JavaScript</span></div>
-        <div><strong>{{ summary?.separators }}</strong><span>分割线</span></div>
+        <div><strong>{{ summary?.separators }}</strong><span>已忽略横线</span></div>
         <div><strong>{{ summary?.failed }}</strong><span>问题</span></div>
       </div>
       <el-alert v-if="preview.issues.length" :title="`${preview.issues.length} 个节点需要注意`" type="warning" :closable="false" />
@@ -185,8 +184,7 @@ watch(() => props.modelValue, (open) => {
               <span>{{ data.label }}</span>
               <span v-if="data.generatedGroup" class="preview-tree-actions">
                 <button type="button" aria-label="重命名分组" title="重命名分组" @click.stop="renameGroup(data)"><Pencil :size="14" /></button>
-                <button type="button" aria-label="转换为普通书签" title="转换为普通书签" @click.stop="convertGroup(data, 'bookmark')"><Link :size="14" /></button>
-                <button type="button" aria-label="转换为分割线" title="转换为分割线" @click.stop="convertGroup(data, 'separator')"><Minus :size="14" /></button>
+                <button type="button" aria-label="转换为普通书签" title="转换为普通书签" @click.stop="convertGroup(data)"><Link :size="14" /></button>
               </span>
             </span>
           </template>

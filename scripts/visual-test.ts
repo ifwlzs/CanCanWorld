@@ -50,8 +50,7 @@ async function run(): Promise<void> {
   const folderId = (await folderResponse.json()).data.id as number
   for (const data of [
     { parentId: folderId, nodeType: 'bookmark', title: 'CanCanWorld 文档', url: 'https://example.com/docs', description: '普通网址书签', iconUrl: null, visibility: 'private', tags: ['文档'] },
-    { parentId: folderId, nodeType: 'bookmark', title: '复制当前标题', url: 'javascript:navigator.clipboard.writeText(document.title)', description: 'JavaScript 书签只允许复制', iconUrl: null, visibility: 'private', tags: ['工具'] },
-    { parentId: folderId, nodeType: 'separator', title: '', url: null, description: null, iconUrl: null, visibility: 'private', tags: [] }
+    { parentId: folderId, nodeType: 'bookmark', title: '复制当前标题', url: 'javascript:navigator.clipboard.writeText(document.title)', description: 'JavaScript 书签只允许复制', iconUrl: null, visibility: 'private', tags: ['工具'] }
   ]) {
     const response = await context.request.post('http://localhost:3080/api/v1/nodes', { headers, data })
     if (!response.ok()) throw new Error(`创建视觉测试节点失败：${response.status()}`)
