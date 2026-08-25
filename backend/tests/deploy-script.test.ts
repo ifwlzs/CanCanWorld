@@ -12,19 +12,24 @@ async function readServiceUnit(): Promise<string> {
   return readFile(resolve(import.meta.dirname, '../../deploy/cancanworld.service'), 'utf8')
 }
 
-/** 读取 Docker 交互安装入口，验证默认部署不依赖宿主机 Nginx。 */
-async function readDockerInstaller(): Promise<string> {
-  return readFile(resolve(import.meta.dirname, '../../deploy/docker-install.sh'), 'utf8')
-}
-
 /** 读取 Docker Compose 模板，验证容器重启策略与 MySQL 持久化约定。 */
 async function readDockerCompose(): Promise<string> {
   return readFile(resolve(import.meta.dirname, '../../deploy/docker/compose.yaml'), 'utf8')
 }
 
+/** 读取 Docker 配置样例，验证默认端口和内置数据库可以直接配置。 */
+async function readDockerEnvironmentExample(): Promise<string> {
+  return readFile(resolve(import.meta.dirname, '../../deploy/docker/cancanworld.env.example'), 'utf8')
+}
+
 /** 读取容器内 Nginx 配置，验证前端和 API 使用同一个对外端口。 */
 async function readDockerNginx(): Promise<string> {
   return readFile(resolve(import.meta.dirname, '../../deploy/docker/nginx.conf'), 'utf8')
+}
+
+/** 读取容器入口脚本，验证迁移前的生产配置防呆。 */
+async function readDockerEntrypoint(): Promise<string> {
+  return readFile(resolve(import.meta.dirname, '../../deploy/docker/entrypoint.sh'), 'utf8')
 }
 
 /** 读取发布脚本，确保 Docker 运行文件确实进入最终压缩包。 */
@@ -71,13 +76,12 @@ describe('Linux 交互式部署脚本', () => {
   })
 })
 
-describe('Linux Docker 交互式部署脚本', () => {
+describe('Linux Docker Compose 部署', () => {
   it('默认通过 3080 暴露容器内置 Nginx', async () => {
-    const installer = await readDockerInstaller()
     const compose = await readDockerCompose()
+    const environment = await readDockerEnvironmentExample()
     const nginx = await readDockerNginx()
-    expect(installer).toContain('默认访问端口：3080（容器内置 Nginx）')
-    expect(installer).toContain('prompt_value "宿主机访问端口" "3080"')
+    expect(environment).toContain('CANCANWORLD_PORT=3080')
     expect(compose).toContain('"${CANCANWORLD_PORT:-3080}:3080"')
     expect(nginx).toContain('listen 3080;')
     expect(nginx).toContain('proxy_pass http://127.0.0.1:3081;')
@@ -85,25 +89,28 @@ describe('Linux Docker 交互式部署脚本', () => {
   })
 
   it('默认提供 MySQL 8 持久卷和容器开机恢复', async () => {
-    const installer = await readDockerInstaller()
     const compose = await readDockerCompose()
-    expect(installer).toContain('confirm "使用 Docker 内置 MySQL 8" "y"')
+    const environment = await readDockerEnvironmentExample()
+    expect(environment).toContain('COMPOSE_PROFILES=bundled-db')
     expect(compose).toContain('image: mysql:8.4')
     expect(compose).toContain('mysql_data:/var/lib/mysql')
     expect(compose).toContain('restart: unless-stopped')
   })
 
-  it('交互输入启用 Readline 且安装后提供固定管理命令', async () => {
-    const installer = await readDockerInstaller()
-    expect(installer).toContain('read -e -r -p')
-    expect(installer).toContain('/usr/local/sbin/cancanworldctl')
-    expect(installer).toContain('docker compose')
+  it('Compose 直接构建镜像并注入根目录配置', async () => {
+    const compose = await readDockerCompose()
+    const entrypoint = await readDockerEntrypoint()
+    expect(compose).toContain('context: .')
+    expect(compose).toContain('dockerfile: deploy/docker/Dockerfile')
+    expect(compose).toContain('- ./.env')
+    expect(entrypoint).toContain('Docker 配置仍使用示例占位值')
   })
 
   it('Linux 发布包包含完整 Docker 构建上下文', async () => {
     const packager = await readLinuxPackager()
-    expect(packager).toContain("'deploy/docker-install.sh'")
     expect(packager).toContain("'deploy/docker'")
     expect(packager).toContain("'.dockerignore'")
+    expect(packager).toContain("'compose.yaml'")
+    expect(packager).toContain("'config/docker.env.example'")
   })
 })

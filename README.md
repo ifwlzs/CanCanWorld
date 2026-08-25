@@ -22,25 +22,45 @@ CanCanWorld 是以 OneNav 使用体验为功能基线、重新设计无限目录
 
 ## Docker 部署（推荐）
 
-Linux 发布包内置单容器 Web 运行时：Nginx 在容器内监听 `3080`，直接提供 Vue 前端，并将 `/api/` 转发给只监听容器回环地址的 Bun 后端。宿主机无需安装 Nginx、Bun 或 Node.js。
+Linux 发布包内置单容器 Web 运行时：Nginx 在容器内监听 `3080`，直接提供 Vue 前端，并将 `/api/` 转发给只监听容器回环地址的 Bun 后端。宿主机无需安装 Nginx、Bun、Node.js 或额外安装脚本。
 
-目标服务器安装 Docker Engine 和 Docker Compose v2 后，解压发布包并运行交互式向导：
+目标服务器安装 Docker Engine 和 Docker Compose v2 后，解压发布包、生成配置并直接启动：
 
 ```bash
 tar -xzf cancanworld-<版本>-linux-x64.tar.gz
 cd cancanworld-<版本>-linux-x64
-sudo bash ./deploy/docker-install.sh
+cp config/docker.env.example .env
+
+# 编辑数据库密码、两份应用密钥和真实访问地址。
+nano .env
+
+docker compose up -d --build
 ```
 
-向导默认将完整网站映射到宿主机 `3080` 端口，并启动独立的 MySQL 8 容器。MySQL 数据保存在 Compose 命名卷中，应用和数据库都使用 `restart: unless-stopped` 随 Docker 自动恢复。也可在向导中选择外部 MySQL；数据库位于 Docker 宿主机时使用 `host.docker.internal`。
+默认配置将完整网站映射到宿主机 `3080` 端口，并启动独立的 MySQL 8 容器。MySQL 数据保存在 Compose 命名卷中，应用和数据库都使用 `restart: unless-stopped` 随 Docker 自动恢复。
 
-安装后通过固定入口管理容器：
+`.env` 中必须修改以下配置：
+
+```dotenv
+MYSQL_ROOT_PASSWORD=随机数据库 root 密码
+DATABASE_PASSWORD=随机应用数据库密码
+FRONTEND_ORIGIN=http://服务器IP:3080
+SESSION_SECRET=至少32个随机字符
+CSRF_SECRET=另一份至少32个随机字符
+```
+
+使用外部 MySQL 时，将 `COMPOSE_PROFILES` 留空，并修改 `DATABASE_HOST`、`DATABASE_PORT`、`DATABASE_NAME`、`DATABASE_USER` 和 `DATABASE_PASSWORD`。数据库位于 Docker 宿主机时可使用 `host.docker.internal`。
+
+常用管理命令：
 
 ```bash
-sudo cancanworldctl
+docker compose ps
+docker compose logs -f --tail 200
+docker compose restart
+docker compose down
 ```
 
-管理菜单提供安装/升级、启动、停止、重启、状态、实时日志、健康检查和删除容器；删除容器不会删除 MySQL 数据卷。所有文本输入支持 Delete、Backspace、方向键和 Home/End。
+`docker compose down` 不会删除 MySQL 数据卷；只有显式增加 `-v` 才会删除数据库卷。
 
 ## Linux 原生部署
 

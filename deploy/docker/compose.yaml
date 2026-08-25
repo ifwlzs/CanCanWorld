@@ -2,13 +2,19 @@ name: cancanworld
 
 services:
   cancanworld:
-    # 安装脚本构建带版本标签的本地镜像，升级时只替换此变量并重建容器。
-    image: ${CANCANWORLD_IMAGE:?请通过安装脚本生成 CANCANWORLD_IMAGE}
+    # Compose 直接从发布包构建镜像，不再依赖额外安装脚本。
+    image: ${CANCANWORLD_IMAGE:-cancanworld:latest}
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile
+      args:
+        APP_VERSION: ${CANCANWORLD_VERSION:-development}
     restart: unless-stopped
     ports:
       - "${CANCANWORLD_PORT:-3080}:3080"
     env_file:
-      - ${CANCANWORLD_ENV_FILE:?请通过安装脚本生成 CANCANWORLD_ENV_FILE}
+      # 发布包根目录的 .env 同时用于 Compose 插值和应用配置注入。
+      - ./.env
     environment:
       # 后端端口仅供同容器 Nginx 使用，不直接映射到宿主机。
       SERVER_HOST: 127.0.0.1

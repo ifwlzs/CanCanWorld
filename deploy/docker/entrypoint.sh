@@ -4,6 +4,13 @@ set -Eeuo pipefail
 MIGRATION_RETRIES="${MIGRATION_RETRIES:-60}"
 MIGRATION_RETRY_SECONDS="${MIGRATION_RETRY_SECONDS:-2}"
 
+# Docker 直接读取 .env，因此在接触数据库前阻止缺项和示例占位值进入运行环境。
+for key in DATABASE_HOST DATABASE_PORT DATABASE_NAME DATABASE_USER DATABASE_PASSWORD FRONTEND_ORIGIN SESSION_SECRET CSRF_SECRET; do
+  value="${!key:-}"
+  [[ -n "$value" ]] || { echo "Docker 配置缺少：$key" >&2; exit 2; }
+  [[ "$value" != CHANGE_* ]] || { echo "Docker 配置仍使用示例占位值：$key" >&2; exit 2; }
+done
+
 # MySQL 容器首次初始化需要时间，迁移器在有限次数内等待数据库可用。
 for ((attempt = 1; attempt <= MIGRATION_RETRIES; attempt++)); do
   if /opt/cancanworld/bin/cancanworld-migrate --migration-dir /opt/cancanworld/migrations; then
