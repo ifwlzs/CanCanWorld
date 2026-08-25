@@ -32,8 +32,15 @@ describe('Linux 交互式部署脚本', () => {
 
   it('数据库密码隐藏输入并自动生成两份随机密钥', async () => {
     const installer = await readInstaller()
-    expect(installer).toContain('read -r -s -p')
+    expect(installer).toContain('read -e -r -s -p')
     expect(installer).toContain('session_secret="$(generate_secret)"')
     expect(installer).toContain('csrf_secret="$(generate_secret)"')
+  })
+
+  it('所有交互输入启用 Bash Readline 编辑', async () => {
+    const installer = await readInstaller()
+    expect(installer).toContain('read -e -r -p')
+    expect(installer).not.toMatch(/read -r -p/)
+    expect(installer).not.toMatch(/read -r -s -p/)
   })
 })

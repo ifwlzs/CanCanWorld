@@ -26,7 +26,8 @@ EOF
 
 prompt_value() {
   local label="$1" default_value="$2" result_name="$3" input
-  read -r -p "$label [$default_value]：" input
+  # 使用 Bash Readline 接管终端编辑，支持 Delete、方向键、Home/End 等按键。
+  read -e -r -p "$label [$default_value]：" input
   printf -v "$result_name" '%s' "${input:-$default_value}"
 }
 
@@ -34,10 +35,11 @@ prompt_required() {
   local label="$1" result_name="$2" secret="${3:-0}" input=""
   while [[ -z "$input" ]]; do
     if [[ "$secret" -eq 1 ]]; then
-      read -r -s -p "$label：" input
+      # 密码同样启用 Readline，但继续关闭回显，避免敏感值显示在终端。
+      read -e -r -s -p "$label：" input
       printf '\n'
     else
-      read -r -p "$label：" input
+      read -e -r -p "$label：" input
     fi
     [[ -n "$input" ]] || echo "该项不能为空。"
   done
@@ -48,7 +50,7 @@ prompt_required() {
 confirm() {
   local label="$1" default_answer="${2:-y}" answer suffix
   if [[ "$default_answer" == "y" ]]; then suffix="Y/n"; else suffix="y/N"; fi
-  read -r -p "$label [$suffix]：" answer
+  read -e -r -p "$label [$suffix]：" answer
   answer="${answer:-$default_answer}"
   [[ "$answer" =~ ^[Yy]$ ]]
 }
@@ -214,7 +216,7 @@ interactive_menu() {
   9) 关闭开机启动
   0) 退出
 EOF
-    read -r -p "请选择 [0-9]：" choice
+    read -e -r -p "请选择 [0-9]：" choice
     case "$choice" in
       1) interactive_install || true ;;
       2) service_action start || true ;;
@@ -228,7 +230,7 @@ EOF
       0) echo "退出部署管理器。"; return 0 ;;
       *) echo "选项无效。" ;;
     esac
-    [[ "$choice" == "6" ]] || { printf '\n'; read -r -p "按 Enter 返回菜单..." _; }
+    [[ "$choice" == "6" ]] || { printf '\n'; read -e -r -p "按 Enter 返回菜单..." _; }
   done
 }
 
