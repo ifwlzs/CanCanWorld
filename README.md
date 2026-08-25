@@ -19,3 +19,23 @@ CanCanWorld 是以 OneNav 使用体验为功能基线、重新设计无限目录
 前端默认地址为 `http://localhost:5173`，后端健康检查为 `http://localhost:3080/api/v1/health`。
 
 完整设计和验收规则见 [开发.md](./开发.md)。
+
+## Linux 打包部署
+
+在安装 Bun 与 PowerShell 7（`pwsh`）的 Windows 构建机上生成 Linux x64 独立发布包，打包时自动执行完整质量门禁：
+
+```powershell
+bun run package:linux
+```
+
+产物位于 `release/cancanworld-<版本>-linux-x64.tar.gz`，旁边的 `.sha256` 文件用于传输校验。发布包包含独立后端、独立迁移器、前端静态文件、SQL 迁移、systemd 和 Nginx 配置；目标服务器无需安装 Node.js 或 Bun。
+
+将发布包和生产环境文件上传到 Linux x64 服务器后执行：
+
+```bash
+tar -xzf cancanworld-<版本>-linux-x64.tar.gz
+cd cancanworld-<版本>-linux-x64
+sudo bash ./deploy/install.sh --env-file /path/cancanworld.env --server-name nav.example.com
+```
+
+安装脚本默认部署到 `/opt/cancanworld`，自动执行数据库迁移、配置 systemd、配置 Nginx、启动服务并检查 `/api/v1/health`。已有版本使用 `current` 软链接原子切换，新服务健康检查失败时自动回退程序版本。生产环境文件可从发布包的 `config/cancanworld.env.example` 创建，私密配置不会进入发布包。

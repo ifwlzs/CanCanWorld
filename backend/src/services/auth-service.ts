@@ -1,4 +1,3 @@
-import { hash, verify } from '@node-rs/argon2'
 import type { Pool, PoolConnection, RowDataPacket } from 'mysql2/promise'
 import { AppError } from '../errors.js'
 import type { AppEnv } from '../config/env.js'
@@ -27,7 +26,7 @@ export class AuthService {
       await connection.beginTransaction()
       const [existing] = await connection.query<RowDataPacket[]>('SELECT id FROM app_user LIMIT 1 FOR UPDATE')
       if (existing.length > 0) throw new AppError(409, 40901, '系统已经完成初始化')
-      const passwordHash = await hash(password, { memoryCost: 19456, timeCost: 2, parallelism: 1 })
+      const passwordHash = await hashPassword(password)
       const now = new Date()
       const [result] = await connection.execute('INSERT INTO app_user (username, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?)', [username.trim(), passwordHash, now, now])
       const userId = Number((result as { insertId: number }).insertId)
@@ -46,7 +45,7 @@ export class AuthService {
   async login(username: string, password: string): Promise<{ sessionToken: string; csrfToken: string; expiresAt: Date }> {
     const [rows] = await this.pool.execute<UserRow[]>('SELECT id, username, password_hash FROM app_user WHERE username = ? LIMIT 1', [username.trim()])
     const user = rows[0]
-    if (!user || !(await verify(user.password_hash, password))) throw new AppError(401, 40101, '账号或密码错误')
+    if (!user || !(await verifyPassword(password, user.password_hash))) throw new AppError(401, 40101, '账号或密码错误')
     const connection = await this.pool.getConnection()
     try {
       return await this.createSession(connection, user.id)
@@ -77,4 +76,16 @@ export class AuthService {
 export function validateCredentials(username: string, password: string): void {
   if (username.trim().length < 3 || username.trim().length > 128) throw new AppError(422, 42202, '管理员账号长度必须为 3 到 128 个字符')
   if (password.length < 6 || password.length > 1024) throw new AppError(422, 42203, '管理员密码长度必须为 6 到 1024 个字符')
+}
+
+/** 使用 Bun 内置 Argon2id 生成标准 PHC 哈希，避免独立部署包携带平台相关原生扩展。 */
+export async function hashPassword(password: string): Promise<string> {
+  if (!globalThis.Bun) throw new Error('认证密码哈希需要 Bun 运行时')
+  return globalThis.Bun.password.hash(password, { algorithm: 'argon2id', memoryCost: 19456, timeCost: 2 })
+}
+
+/** Bun 可直接验证既有标准 Argon2id PHC 哈希，管理员升级部署后无需重置密码。 */
+export async function verifyPassword(password: string, passwordHash: string): Promise<boolean> {
+  if (!globalThis.Bun) throw new Error('认证密码校验需要 Bun 运行时')
+  return globalThis.Bun.password.verify(password, passwordHash)
 }

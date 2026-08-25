@@ -1,0 +1,37 @@
+[Unit]
+Description=CanCanWorld 书签导航后端
+# 等待基础网络就绪后再连接独立 MySQL。
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# 服务使用独立低权限账号，生产密钥只从受限环境文件读取。
+Type=simple
+User=__SERVICE_USER__
+Group=__SERVICE_USER__
+WorkingDirectory=__INSTALL_DIR__/current
+EnvironmentFile=__CONFIG_FILE__
+Environment=NODE_ENV=production
+ExecStart=__INSTALL_DIR__/current/bin/cancanworld-server
+# 异常退出自动拉起，正常 systemctl stop 不重复启动。
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=30
+TimeoutStopSec=30
+KillSignal=SIGTERM
+# 只读系统与内核隔离项限制服务进程的主机写入面。
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+
+[Install]
+# 随系统进入多用户运行级别自动启动。
+WantedBy=multi-user.target

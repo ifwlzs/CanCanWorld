@@ -1,6 +1,8 @@
 # 依赖与构建产物由包管理器和构建流程生成，不进入版本库。
 node_modules/
+.bun-cache/
 dist/
+release/
 coverage/
 artifacts/
 *.tsbuildinfo

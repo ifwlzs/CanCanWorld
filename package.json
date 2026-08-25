@@ -24,6 +24,7 @@
     "test": "bun --filter @cancanworld/backend test",
     "check": "bun run typecheck && bun run test && bun run build",
     "db:migrate": "bun --filter @cancanworld/backend db:migrate",
-    "import:onenav": "bun backend/scripts/import-onenav.ts"
+    "import:onenav": "bun backend/scripts/import-onenav.ts",
+    "package:linux": "pwsh -NoProfile -File scripts/package-linux.ps1"
   }
 }

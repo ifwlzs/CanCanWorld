@@ -19,6 +19,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true
+    // 生产静态目录不发布源码映射，避免 Nginx 暴露完整前端源代码。
+    sourcemap: false
   }
 })
