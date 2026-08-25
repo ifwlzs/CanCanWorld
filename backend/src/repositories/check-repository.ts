@@ -46,7 +46,7 @@ export class CheckRepository {
       if (folderId !== undefined) {
         // 先区分“目录不存在”和“目录内没有链接”，空目录仍会生成总数为零的有效任务。
         const [folders] = await connection.execute<RowDataPacket[]>(
-          "SELECT id FROM navigation_node WHERE id = ? AND node_type IN ('root', 'folder') LIMIT 1",
+          "SELECT id FROM navigation_node WHERE id = ? AND node_type IN ('root', 'folder') LIMIT 1 FOR SHARE",
           [folderId]
         )
         if (folders.length === 0) throw new AppError(404, 40408, '检测目录不存在')
@@ -67,6 +67,7 @@ export class CheckRepository {
             AND node_type = 'bookmark'
             AND enabled = 1
             AND (url LIKE 'http://%' OR url LIKE 'https://%')
+          FOR SHARE
         `, [folderId])
         bookmarks = scopedBookmarks
       } else {
@@ -76,7 +77,8 @@ export class CheckRepository {
           filter += ' AND id = ?'
           params.push(bookmarkId)
         }
-        const [selectedBookmarks] = await connection.execute<RowDataPacket[]>(`SELECT id FROM navigation_node WHERE ${filter}`, params)
+        // 任务项目落库前共享锁定书签，节点删除事务会等待快照完成后再显式清理关联。
+        const [selectedBookmarks] = await connection.execute<RowDataPacket[]>(`SELECT id FROM navigation_node WHERE ${filter} FOR SHARE`, params)
         bookmarks = selectedBookmarks
       }
       if (bookmarkId !== undefined && bookmarks.length === 0) throw new AppError(404, 40404, '可检测书签不存在')

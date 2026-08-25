@@ -152,8 +152,16 @@ async function cleanup(): Promise<void> {
       `, [rootFolderId])
       for (const row of rows) await pool.execute('DELETE FROM navigation_node WHERE id = ?', [row.id])
     }
-    if (createdAdmin) await pool.execute('DELETE FROM app_user WHERE username = ?', [username])
-    for (const checkJobId of checkJobIds) await pool.execute('DELETE FROM bookmark_check_job WHERE id = ?', [checkJobId])
+    if (createdAdmin) {
+      const [users] = await pool.execute<import('mysql2/promise').RowDataPacket[]>('SELECT id FROM app_user WHERE username = ?', [username])
+      for (const user of users) await pool.execute('DELETE FROM app_session WHERE user_id = ?', [user.id])
+      await pool.execute('DELETE FROM app_user WHERE username = ?', [username])
+    }
+    for (const checkJobId of checkJobIds) {
+      await pool.execute('DELETE FROM bookmark_check_job_item WHERE job_id = ?', [checkJobId])
+      await pool.execute('UPDATE bookmark_check_log SET job_id = NULL WHERE job_id = ?', [checkJobId])
+      await pool.execute('DELETE FROM bookmark_check_job WHERE id = ?', [checkJobId])
+    }
     for (const backupId of backupIds) await pool.execute('DELETE FROM app_backup WHERE id = ?', [backupId])
     await pool.execute('DELETE FROM app_backup WHERE payload LIKE ?', [`%${rootTitle}%`])
     await pool.execute('DELETE FROM tag WHERE NOT EXISTS (SELECT 1 FROM node_tag WHERE node_tag.tag_id = tag.id)')

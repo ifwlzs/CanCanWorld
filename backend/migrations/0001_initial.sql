@@ -19,8 +19,7 @@ CREATE TABLE IF NOT EXISTS app_session (
   created_at DATETIME(3) NOT NULL COMMENT '会话创建 UTC 时间',
   PRIMARY KEY (id),
   UNIQUE KEY uk_app_session_token_hash (token_hash) COMMENT '通过令牌摘要唯一定位会话',
-  KEY idx_app_session_expires_at (expires_at) COMMENT '支持批量清理过期会话',
-  CONSTRAINT fk_app_session_user FOREIGN KEY (user_id) REFERENCES app_user (id) ON DELETE CASCADE
+  KEY idx_app_session_expires_at (expires_at) COMMENT '支持批量清理过期会话'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='管理员服务端会话';
 
 -- 统一导航节点。三类业务节点共享父子关系和排序，保证导入原始顺序可还原。
@@ -48,7 +47,6 @@ CREATE TABLE IF NOT EXISTS navigation_node (
   KEY idx_navigation_node_type_enabled (node_type, enabled) COMMENT '筛选可检测或可展示节点',
   KEY idx_navigation_node_url_hash (url_hash) COMMENT 'URL 重复检查和精确查询',
   KEY idx_navigation_node_title (title) COMMENT '标题前缀和关键词查询辅助索引',
-  CONSTRAINT fk_navigation_node_parent FOREIGN KEY (parent_id) REFERENCES navigation_node (id) ON DELETE RESTRICT,
   CONSTRAINT ck_navigation_node_shape CHECK (
     (node_type = 'root' AND parent_id IS NULL AND url IS NULL)
     OR (node_type = 'folder' AND parent_id IS NOT NULL AND url IS NULL)
@@ -81,9 +79,7 @@ CREATE TABLE IF NOT EXISTS node_tag (
   node_id BIGINT UNSIGNED NOT NULL COMMENT '书签节点主键',
   tag_id BIGINT UNSIGNED NOT NULL COMMENT '标签主键',
   PRIMARY KEY (node_id, tag_id),
-  KEY idx_node_tag_tag_id (tag_id) COMMENT '按标签反查书签',
-  CONSTRAINT fk_node_tag_node FOREIGN KEY (node_id) REFERENCES navigation_node (id) ON DELETE CASCADE,
-  CONSTRAINT fk_node_tag_tag FOREIGN KEY (tag_id) REFERENCES tag (id) ON DELETE CASCADE
+  KEY idx_node_tag_tag_id (tag_id) COMMENT '按标签反查书签'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='书签标签关联';
 
 -- 导入任务保存解析后的预览树；确认成功或过期后可由清理任务移除大字段。
@@ -125,9 +121,7 @@ CREATE TABLE IF NOT EXISTS bookmark_check_job_item (
   bookmark_id BIGINT UNSIGNED NOT NULL COMMENT '待检测书签节点主键',
   status ENUM('pending','running','completed','failed','cancelled') NOT NULL COMMENT '单条书签检测状态',
   PRIMARY KEY (job_id, bookmark_id),
-  KEY idx_check_job_item_status (job_id, status) COMMENT '按任务获取待处理项目',
-  CONSTRAINT fk_check_job_item_job FOREIGN KEY (job_id) REFERENCES bookmark_check_job (id) ON DELETE CASCADE,
-  CONSTRAINT fk_check_job_item_bookmark FOREIGN KEY (bookmark_id) REFERENCES navigation_node (id) ON DELETE CASCADE
+  KEY idx_check_job_item_status (job_id, status) COMMENT '按任务获取待处理项目'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='链接检测任务书签快照';
 
 -- 检测历史按书签和时间建立联合索引，支持趋势和可用率统计。
@@ -142,9 +136,7 @@ CREATE TABLE IF NOT EXISTS bookmark_check_log (
   checked_at DATETIME(3) NOT NULL COMMENT '检测完成 UTC 时间',
   PRIMARY KEY (id),
   KEY idx_bookmark_check_log_bookmark_checked (bookmark_id, checked_at) COMMENT '查询单个书签历史和统计',
-  KEY idx_bookmark_check_log_job_id (job_id) COMMENT '查询批量任务明细',
-  CONSTRAINT fk_bookmark_check_log_bookmark FOREIGN KEY (bookmark_id) REFERENCES navigation_node (id) ON DELETE CASCADE,
-  CONSTRAINT fk_bookmark_check_log_job FOREIGN KEY (job_id) REFERENCES bookmark_check_job (id) ON DELETE SET NULL
+  KEY idx_bookmark_check_log_job_id (job_id) COMMENT '查询批量任务明细'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='书签链接检测历史';
 
 -- 设置表只保存主题和非密钥运行参数，密钥继续从部署环境读取。

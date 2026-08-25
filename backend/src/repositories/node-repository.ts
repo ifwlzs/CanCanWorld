@@ -165,10 +165,12 @@ export class NodeRepository {
             SELECT n.id, tree.depth + 1 FROM navigation_node n INNER JOIN tree ON n.parent_id = tree.id
           ) SELECT id, depth FROM tree ORDER BY depth DESC
         `, [id])
+        await deleteNodeRelations(connection, descendants.map((descendant) => Number(descendant.id)))
         for (const descendant of descendants) await connection.execute('DELETE FROM navigation_node WHERE id = ?', [descendant.id])
         await connection.commit()
         return
       }
+      await deleteNodeRelations(connection, [id])
       await connection.execute('DELETE FROM navigation_node WHERE id = ?', [id])
       await connection.commit()
     } catch (error) {
@@ -209,7 +211,8 @@ export class NodeRepository {
   }
 
   private async requireFolder(connection: PoolConnection, id: number): Promise<void> {
-    const [rows] = await connection.execute<RowDataPacket[]>('SELECT id FROM navigation_node WHERE id = ? AND node_type IN (\'root\', \'folder\') LIMIT 1', [id])
+    // 无外键模式下锁定父目录直到当前事务完成，防止并发删除产生孤立节点。
+    const [rows] = await connection.execute<RowDataPacket[]>('SELECT id FROM navigation_node WHERE id = ? AND node_type IN (\'root\', \'folder\') LIMIT 1 FOR SHARE', [id])
     if (rows.length === 0) throw new AppError(404, 40402, '父目录不存在')
   }
 
@@ -251,6 +254,34 @@ export class NodeRepository {
     }
     return paths
   }
+}
+
+/** 无数据库外键时，节点删除事务必须先清理全部关联记录并重算仍保留的任务总数。 */
+async function deleteNodeRelations(connection: PoolConnection, nodeIds: number[]): Promise<void> {
+  if (nodeIds.length === 0) return
+  const placeholders = nodeIds.map(() => '?').join(',')
+  const [jobs] = await connection.query<RowDataPacket[]>(`SELECT DISTINCT job_id FROM bookmark_check_job_item WHERE bookmark_id IN (${placeholders})`, nodeIds)
+  const [faviconJobs] = await connection.query<RowDataPacket[]>(`SELECT DISTINCT job_id FROM favicon_job_item WHERE bookmark_id IN (${placeholders})`, nodeIds)
+  await connection.query(`DELETE FROM node_tag WHERE node_id IN (${placeholders})`, nodeIds)
+  await connection.query(`DELETE FROM bookmark_check_log WHERE bookmark_id IN (${placeholders})`, nodeIds)
+  await connection.query(`DELETE FROM bookmark_check_job_item WHERE bookmark_id IN (${placeholders})`, nodeIds)
+  await connection.query(`DELETE FROM favicon_job_item WHERE bookmark_id IN (${placeholders})`, nodeIds)
+  await connection.query(`DELETE FROM bookmark_icon WHERE bookmark_id IN (${placeholders})`, nodeIds)
+  for (const job of jobs) {
+    await connection.execute(`
+      UPDATE bookmark_check_job
+      SET total = (SELECT COUNT(*) FROM bookmark_check_job_item WHERE job_id = ?), updated_at = ?
+      WHERE id = ?
+    `, [job.job_id, new Date(), job.job_id])
+  }
+  for (const job of faviconJobs) {
+    await connection.execute(`
+      UPDATE favicon_job
+      SET total = (SELECT COUNT(*) FROM favicon_job_item WHERE job_id = ?), updated_at = ?
+      WHERE id = ?
+    `, [job.job_id, new Date(), job.job_id])
+  }
+  await connection.query('DELETE FROM tag WHERE NOT EXISTS (SELECT 1 FROM node_tag WHERE node_tag.tag_id = tag.id)')
 }
 
 /** 统一节点形状约束在写入前执行，数据库 CHECK 作为第二道防线。 */

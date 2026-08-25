@@ -108,6 +108,9 @@ export class BackupRepository {
     const connection = await this.pool.getConnection()
     try {
       await connection.beginTransaction()
+      await connection.query('DELETE FROM favicon_job_item')
+      await connection.query('DELETE FROM favicon_job')
+      await connection.query('DELETE FROM bookmark_icon')
       await connection.query('DELETE FROM bookmark_check_log')
       await connection.query('DELETE FROM bookmark_check_job_item')
       await connection.query('DELETE FROM bookmark_check_job')
