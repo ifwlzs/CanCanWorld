@@ -27,14 +27,14 @@ export function createAuthRoutes(dependencies: AppDependencies) {
   routes.post('/initialize', zValidator('json', credentialsSchema), async (context) => {
     const input = context.req.valid('json')
     const session = await service.initialize(input.username, input.password)
-    setSessionCookies(context, session, dependencies.env.NODE_ENV === 'production')
+    setSessionCookies(context, session, isSecureRequest(context))
     return context.json({ code: 0, message: 'success', data: { csrfToken: session.csrfToken } }, 201)
   })
 
   routes.post('/login', zValidator('json', credentialsSchema), async (context) => {
     const input = context.req.valid('json')
     const session = await service.login(input.username, input.password)
-    setSessionCookies(context, session, dependencies.env.NODE_ENV === 'production')
+    setSessionCookies(context, session, isSecureRequest(context))
     return context.json({ code: 0, message: 'success', data: { csrfToken: session.csrfToken } })
   })
 
@@ -52,4 +52,15 @@ function setSessionCookies(context: Parameters<typeof setCookie>[0], session: { 
   const common = { path: '/', secure, sameSite: 'Strict' as const, expires: session.expiresAt }
   setCookie(context, 'cw_session', session.sessionToken, { ...common, httpOnly: true })
   setCookie(context, 'cw_csrf', session.csrfToken, { ...common, httpOnly: false })
+}
+
+/** 仅在实际 HTTPS 请求上启用 Secure，兼容 HTTP NAS 访问和 HTTPS 反向代理。 */
+function isSecureRequest(context: Parameters<typeof setCookie>[0]): boolean {
+  const forwardedProto = context.req.header('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase()
+  if (forwardedProto) return forwardedProto === 'https'
+  try {
+    return new URL(context.req.url).protocol === 'https:'
+  } catch {
+    return false
+  }
 }
