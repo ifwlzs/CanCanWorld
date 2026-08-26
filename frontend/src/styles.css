@@ -222,10 +222,10 @@ button { letter-spacing: 0; }
 .icon-button.danger:hover { background: #fcebec; color: #b4232c; }
 .task-layout { display: grid; align-content: start; gap: 6px; }
 .schedule-section { margin-top: 0; padding-top: 0; border-top: 0; }
-.schedule-grid { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); gap: 10px; }
-.schedule-grid > div { min-width: 0; display: flex; flex-direction: column; gap: 5px; padding: 12px; border: 1px solid #dfe5e8; border-radius: 6px; background: #ffffff; }
-.schedule-grid span { color: var(--muted); font-size: 12px; }
-.schedule-grid strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-variant-numeric: tabular-nums; }
+.schedule-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 16px; }
+.schedule-controls label { display: flex; align-items: center; gap: 9px; min-height: 32px; color: var(--muted); font-size: 12px; }
+.schedule-controls label:nth-child(2) { align-items: center; }
+.schedule-controls small { color: var(--muted); font-variant-numeric: tabular-nums; }
 .admin-task-progress { min-width: 0; display: grid; grid-template-columns: minmax(130px, 220px) minmax(160px, 1fr) 34px; align-items: center; gap: 14px; margin-bottom: 12px; padding: 10px 12px; border-block: 1px solid #dfe4e8; background: #f8fafb; }
 .admin-task-progress > div:first-child { min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .admin-task-progress strong, .admin-task-progress span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -270,6 +270,8 @@ button { letter-spacing: 0; }
   .admin-table-wrap { height: calc(100% - 150px); }
   .admin-task-progress { grid-template-columns: minmax(0, 1fr) 34px; gap: 8px; }
   .admin-task-progress > .el-progress { grid-column: 1 / -1; grid-row: 2; }
-  .schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .schedule-controls { align-items: stretch; flex-direction: column; gap: 10px; }
+  .schedule-controls label { justify-content: space-between; }
+  .schedule-controls .command-button { align-self: flex-start; }
   .appearance-form { grid-template-columns: 1fr; gap: 12px; }
 }

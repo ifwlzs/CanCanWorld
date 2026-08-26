@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import type { RowDataPacket } from 'mysql2/promise'
 import { requireAdmin } from '../middleware/auth.js'
 import type { AppDependencies, AppVariables } from '../types.js'
+import { readLinkCheckSchedule } from '../services/link-check-settings.js'
 
 interface AdminCountRow extends RowDataPacket {
   folders: string | number | null
@@ -27,6 +28,7 @@ export function createAdminRoutes(dependencies: AppDependencies) {
     const [iconRows] = await dependencies.pool.query<RowDataPacket[]>('SELECT COUNT(*) AS icons FROM bookmark_icon')
     const [checkJobs] = await dependencies.pool.query<RowDataPacket[]>('SELECT id, status, total, processed, succeeded, failed, created_at FROM bookmark_check_job ORDER BY created_at DESC LIMIT 5')
     const [faviconJobs] = await dependencies.pool.query<RowDataPacket[]>('SELECT id, status, total, processed, succeeded, failed, created_at FROM favicon_job ORDER BY created_at DESC LIMIT 5')
+    const linkCheckSchedule = await readLinkCheckSchedule(dependencies.pool)
     const counts = nodeRows[0]
     return context.json({
       code: 0,
@@ -37,16 +39,8 @@ export function createAdminRoutes(dependencies: AppDependencies) {
           privateBookmarks: Number(counts?.private_bookmarks ?? 0), missingIcons: Number(counts?.missing_icons ?? 0),
           unavailable: Number(counts?.unavailable ?? 0), icons: Number(iconRows[0]?.icons ?? 0)
         },
-        // 调度配置只读展示给管理员，实际配置仍由部署环境变量统一管理。
-        linkCheckSchedule: {
-          enabled: true,
-          intervalSeconds: dependencies.env.LINK_CHECK_INTERVAL_SECONDS,
-          concurrency: dependencies.env.LINK_CHECK_CONCURRENCY,
-          perHostConcurrency: dependencies.env.LINK_CHECK_PER_HOST_CONCURRENCY,
-          timeoutMs: dependencies.env.LINK_CHECK_TIMEOUT_MS,
-          allowedPorts: dependencies.env.LINK_CHECK_ALLOWED_PORTS,
-          historyRetentionDays: dependencies.env.LINK_CHECK_HISTORY_RETENTION_DAYS
-        },
+        // 调度配置来自数据库，管理员保存后无需改环境文件或重启服务。
+        linkCheckSchedule,
         checkJobs: checkJobs.map(mapJob),
         faviconJobs: faviconJobs.map(mapJob)
       }

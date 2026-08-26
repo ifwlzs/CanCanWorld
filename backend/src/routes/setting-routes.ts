@@ -3,12 +3,18 @@ import type { RowDataPacket } from 'mysql2/promise'
 import { z } from 'zod'
 import { validationError } from '../errors.js'
 import { requireAdmin } from '../middleware/auth.js'
+import { readLinkCheckSchedule, writeLinkCheckSchedule } from '../services/link-check-settings.js'
 import type { AppDependencies, AppVariables } from '../types.js'
 
 const themeSchema = z.object({
   theme: z.enum(['default', 'compact', 'bookmark']),
   accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#19715f'),
   layoutStyle: z.enum(['style1', 'style2']).default('style1')
+})
+
+const linkCheckScheduleSchema = z.object({
+  enabled: z.boolean(),
+  intervalSeconds: z.coerce.number().int().min(60).max(7 * 24 * 60 * 60)
 })
 
 /** 主题设置只保存受控令牌，不接受脚本、模板或远程组件地址。 */
@@ -28,6 +34,15 @@ export function createSettingRoutes(dependencies: AppDependencies) {
       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = VALUES(updated_at)
     `, [JSON.stringify(parsed.data), new Date()])
     return context.json({ code: 0, message: 'success', data: parsed.data })
+  })
+  routes.get('/link-check', requireAdmin(), async (context) => {
+    return context.json({ code: 0, message: 'success', data: await readLinkCheckSchedule(dependencies.pool) })
+  })
+  routes.put('/link-check', requireAdmin(), async (context) => {
+    const parsed = linkCheckScheduleSchema.safeParse(await context.req.json())
+    if (!parsed.success) throw validationError(parsed.error)
+    const saved = await writeLinkCheckSchedule(dependencies.pool, parsed.data)
+    return context.json({ code: 0, message: 'success', data: saved })
   })
   return routes
 }

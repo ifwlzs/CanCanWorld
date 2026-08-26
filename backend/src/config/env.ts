@@ -22,7 +22,6 @@ const envSchema = z.object({
   IMPORT_MAX_NODES: z.coerce.number().int().min(1).default(100000),
   IMPORT_MAX_DEPTH: z.coerce.number().int().min(1).max(1024).default(256),
   IMPORT_JOB_TTL_SECONDS: z.coerce.number().int().min(300).default(86400),
-  LINK_CHECK_INTERVAL_SECONDS: z.coerce.number().int().min(60).default(1800),
   LINK_CHECK_CONCURRENCY: z.coerce.number().int().min(1).max(100).default(10),
   LINK_CHECK_PER_HOST_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(2),
   LINK_CHECK_TIMEOUT_MS: z.coerce.number().int().min(100).max(120000).default(10000),

@@ -17,7 +17,8 @@ import {
   Trash2,
   X
 } from 'lucide-vue-next'
-import { computed, onMounted, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { apiRequest } from '../api/client'
 import BookmarkIcon from './BookmarkIcon.vue'
 
@@ -33,11 +34,6 @@ interface AdminSummary {
   linkCheckSchedule: {
     enabled: boolean
     intervalSeconds: number
-    concurrency: number
-    perHostConcurrency: number
-    timeoutMs: number
-    allowedPorts: string
-    historyRetentionDays: number
   }
   checkJobs: AdminJob[]
   faviconJobs: AdminJob[]
@@ -96,6 +92,8 @@ const query = ref('')
 const nodeType = ref<'all' | 'folder' | 'bookmark'>('all')
 const page = ref(1)
 const pageSize = ref(50)
+const scheduleForm = reactive({ enabled: true, intervalSeconds: 1800 })
+const scheduleSaving = ref(false)
 
 // 后台表格一次压平完整树，再由客户端筛选和分页，避免每次输入都重新请求全量数据。
 const flatNodes = computed(() => flattenNodes(props.nodes))
@@ -121,8 +119,29 @@ async function loadSummary(): Promise<void> {
   loading.value = true
   try {
     summary.value = await apiRequest<AdminSummary>('/api/v1/admin/summary')
+    scheduleForm.enabled = summary.value.linkCheckSchedule.enabled
+    scheduleForm.intervalSeconds = summary.value.linkCheckSchedule.intervalSeconds
   } finally {
     loading.value = false
+  }
+}
+
+/** 保存后台定时检测设置；调度器会在下一次轮询时读取新值。 */
+async function saveSchedule(): Promise<void> {
+  scheduleSaving.value = true
+  try {
+    const saved = await apiRequest<AdminSummary['linkCheckSchedule']>('/api/v1/settings/link-check', {
+      method: 'PUT',
+      body: JSON.stringify(scheduleForm)
+    })
+    scheduleForm.enabled = saved.enabled
+    scheduleForm.intervalSeconds = saved.intervalSeconds
+    if (summary.value) summary.value.linkCheckSchedule = saved
+    ElMessage.success('定时检测设置已保存')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '保存定时检测设置失败')
+  } finally {
+    scheduleSaving.value = false
   }
 }
 
@@ -142,7 +161,7 @@ function formatTime(value: string): string {
   return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 }
 
-/** 将环境变量中的秒数转换为后台可读的中文周期。 */
+/** 将数据库设置中的秒数转换为后台可读的中文周期。 */
 function formatInterval(seconds: number): string {
   if (seconds % 3600 === 0) return `${seconds / 3600} 小时`
   if (seconds % 60 === 0) return `${seconds / 60} 分钟`
@@ -223,14 +242,11 @@ onMounted(() => void loadSummary())
 
       <section v-else-if="activeTab === 'tasks'" v-loading="loading" class="admin-content task-layout">
         <div class="admin-section schedule-section">
-          <div class="admin-section-heading"><div><h2>定时检测</h2><p>服务端按固定周期创建全库链接检测任务；存在运行中任务时会跳过本轮，避免任务堆积。</p></div><el-tag :type="summary?.linkCheckSchedule.enabled ? 'success' : 'info'" effect="plain">{{ summary?.linkCheckSchedule.enabled ? '已启用' : '未启用' }}</el-tag></div>
-          <div class="schedule-grid">
-            <div><span>执行周期</span><strong>{{ summary?.linkCheckSchedule ? formatInterval(summary.linkCheckSchedule.intervalSeconds) : '-' }}</strong></div>
-            <div><span>全局并发</span><strong>{{ summary?.linkCheckSchedule?.concurrency ?? '-' }}</strong></div>
-            <div><span>单主机并发</span><strong>{{ summary?.linkCheckSchedule?.perHostConcurrency ?? '-' }}</strong></div>
-            <div><span>单链接超时</span><strong>{{ summary?.linkCheckSchedule ? `${summary.linkCheckSchedule.timeoutMs} ms` : '-' }}</strong></div>
-            <div><span>允许端口</span><strong>{{ summary?.linkCheckSchedule?.allowedPorts || '-' }}</strong></div>
-            <div><span>历史保留</span><strong>{{ summary?.linkCheckSchedule ? `${summary.linkCheckSchedule.historyRetentionDays} 天` : '-' }}</strong></div>
+          <div class="admin-section-heading"><div><h2>定时检测</h2><p>服务端按固定周期创建全库链接检测任务；存在运行中任务时会跳过本轮，避免任务堆积。</p></div><el-tag :type="scheduleForm.enabled ? 'success' : 'info'" effect="plain">{{ scheduleForm.enabled ? '已启用' : '未启用' }}</el-tag></div>
+          <div class="schedule-controls">
+            <label><span>启用定时检测</span><el-switch v-model="scheduleForm.enabled" /></label>
+            <label><span>执行周期</span><el-input-number v-model="scheduleForm.intervalSeconds" :min="60" :max="604800" :step="60" controls-position="right" /><small>{{ formatInterval(scheduleForm.intervalSeconds) }}</small></label>
+            <button class="command-button primary" type="button" :disabled="scheduleSaving" @click="saveSchedule">{{ scheduleSaving ? '保存中...' : '保存设置' }}</button>
           </div>
         </div>
         <div class="admin-section">
