@@ -84,6 +84,14 @@ MySQL 必须提前创建数据库和账号，并授予应用迁移所需的建�
 
 容器内 Nginx 使用 `server_name _`，因此宿主机 3080 端口收到的 `nas`、`nas.lan`、`192.168.2.190` 等 Host 都会进入同一个站点。Docker 端口默认绑定宿主机所有网卡；如宿主机防火墙启用，请放行 TCP 3080。前端通过同源地址访问 API，不要求把所有地址都写入 `FRONTEND_ORIGIN`；该值填你常用的访问地址即可。
 
+`SESSION_SECRET` 用于保护登录会话相关的签名和加密材料，`CSRF_SECRET` 用于 CSRF 防护。它们不是管理员密码，也不需要用户自行编造规则，只要使用两组不同的随机字符串即可。首次部署可直接生成：
+
+```bash
+sed -i "s#^SESSION_SECRET=.*#SESSION_SECRET=$(openssl rand -hex 32)#; s#^CSRF_SECRET=.*#CSRF_SECRET=$(openssl rand -hex 32)#" .env
+```
+
+密钥写入 `.env` 后应长期保留；更换密钥会使现有登录会话失效，需要重新登录。
+
 常用管理命令：
 
 ```bash
