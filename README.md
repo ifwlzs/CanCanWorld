@@ -65,30 +65,33 @@ docker compose up -d --no-build
 echo "$GHCR_TOKEN" | docker login ghcr.io --username ifwlzs --password-stdin
 ```
 
-默认配置将完整网站映射到宿主机 `3080` 端口，并启动独立的 MySQL 8 容器。MySQL 数据保存在 Compose 命名卷中，应用和数据库都使用 `restart: unless-stopped` 随 Docker 自动恢复。
+默认配置将完整网站映射到宿主机 `3080` 端口，只启动 CanCanWorld 应用容器。数据库使用 `.env` 中配置的外部 MySQL，不创建 MySQL 容器或数据库命名卷。容器使用 `restart: unless-stopped` 随 Docker 自动恢复。
 
 `.env` 中必须修改以下配置：
 
 ```dotenv
-MYSQL_ROOT_PASSWORD=随机数据库 root 密码
 DATABASE_PASSWORD=随机应用数据库密码
-FRONTEND_ORIGIN=http://服务器IP:3080
+DATABASE_HOST=host.docker.internal
+DATABASE_PORT=3306
+DATABASE_NAME=db_cancanworld
+DATABASE_USER=finedb
+FRONTEND_ORIGIN=http://nas.lan:3080
 SESSION_SECRET=至少32个随机字符
 CSRF_SECRET=另一份至少32个随机字符
 ```
 
-使用外部 MySQL 时，将 `COMPOSE_PROFILES` 留空，并修改 `DATABASE_HOST`、`DATABASE_PORT`、`DATABASE_NAME`、`DATABASE_USER` 和 `DATABASE_PASSWORD`。数据库位于 Docker 宿主机时可使用 `host.docker.internal`。
+MySQL 必须提前创建数据库和账号，并授予应用迁移所需的建表、修改表和索引权限。数据库位于 Docker 宿主机时可使用 `host.docker.internal`；如果 MySQL 在其他机器，请填写该机器的局域网 IP 或 DNS。MySQL 不能只监听 `127.0.0.1`，还需允许来自 Docker 网段的连接。
+
+容器内 Nginx 使用 `server_name _`，因此宿主机 3080 端口收到的 `nas`、`nas.lan`、`192.168.2.190` 等 Host 都会进入同一个站点。Docker 端口默认绑定宿主机所有网卡；如宿主机防火墙启用，请放行 TCP 3080。前端通过同源地址访问 API，不要求把所有地址都写入 `FRONTEND_ORIGIN`；该值填你常用的访问地址即可。
 
 常用管理命令：
 
 ```bash
 docker compose ps
-docker compose logs -f --tail 200
+docker compose logs -f --tail 200 cancanworld
 docker compose restart
 docker compose down
 ```
-
-`docker compose down` 不会删除 MySQL 数据卷；只有显式增加 `-v` 才会删除数据库卷。
 
 ## Linux 原生部署
 

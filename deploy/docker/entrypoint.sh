@@ -11,7 +11,7 @@ for key in DATABASE_HOST DATABASE_PORT DATABASE_NAME DATABASE_USER DATABASE_PASS
   [[ "$value" != CHANGE_* ]] || { echo "Docker 配置仍使用示例占位值：$key" >&2; exit 2; }
 done
 
-# MySQL 容器首次初始化需要时间，迁移器在有限次数内等待数据库可用。
+# 外部 MySQL 可能尚未启动或网络尚未就绪，迁移器在有限次数内等待数据库可用。
 for ((attempt = 1; attempt <= MIGRATION_RETRIES; attempt++)); do
   if /opt/cancanworld/bin/cancanworld-migrate --migration-dir /opt/cancanworld/migrations; then
     break

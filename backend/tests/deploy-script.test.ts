@@ -12,12 +12,12 @@ async function readServiceUnit(): Promise<string> {
   return readFile(resolve(import.meta.dirname, '../../deploy/cancanworld.service'), 'utf8')
 }
 
-/** 读取 Docker Compose 模板，验证容器重启策略与 MySQL 持久化约定。 */
+/** 读取 Docker Compose 模板，验证单容器运行策略和外部数据库约定。 */
 async function readDockerCompose(): Promise<string> {
   return readFile(resolve(import.meta.dirname, '../../deploy/docker/compose.yaml'), 'utf8')
 }
 
-/** 读取 Docker 配置样例，验证默认端口和内置数据库可以直接配置。 */
+/** 读取 Docker 配置样例，验证默认端口和外部数据库连接配置。 */
 async function readDockerEnvironmentExample(): Promise<string> {
   return readFile(resolve(import.meta.dirname, '../../deploy/docker/cancanworld.env.example'), 'utf8')
 }
@@ -93,12 +93,15 @@ describe('Linux Docker Compose 部署', () => {
     expect(nginx).toContain('try_files $uri $uri/ /index.html;')
   })
 
-  it('默认提供 MySQL 8 持久卷和容器开机恢复', async () => {
+  it('只启动应用容器并连接外部 MySQL', async () => {
     const compose = await readDockerCompose()
     const environment = await readDockerEnvironmentExample()
-    expect(environment).toContain('COMPOSE_PROFILES=bundled-db')
-    expect(compose).toContain('image: mysql:8.4')
-    expect(compose).toContain('mysql_data:/var/lib/mysql')
+    expect(environment).toContain('DATABASE_HOST=host.docker.internal')
+    expect(environment).not.toContain('COMPOSE_PROFILES=')
+    expect(environment).not.toContain('MYSQL_ROOT_PASSWORD=')
+    expect(compose).not.toContain('image: mysql:8.4')
+    expect(compose).not.toContain('mysql_data')
+    expect(compose).not.toContain('depends_on:')
     expect(compose).toContain('restart: unless-stopped')
   })
 
