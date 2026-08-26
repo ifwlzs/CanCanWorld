@@ -361,7 +361,7 @@ onMounted(async () => {
         <input v-model="navigation.query" type="search" :placeholder="`搜索 ${pageTitle} 的名称、链接、备注、注释或标签`" />
       </form>
       <div class="top-actions">
-        <button v-if="auth.authenticated" class="icon-button" type="button" aria-label="后台管理" @click="adminOpen = true"><LayoutDashboard :size="19" /></button>
+        <button v-if="auth.authenticated" class="command-button" type="button" aria-label="后台管理" @click="adminOpen = true"><LayoutDashboard :size="17" /><span>管理后台</span></button>
         <el-dropdown trigger="click" @command="changeAppearanceCommand">
           <button class="icon-button" type="button" aria-label="主题设置"><Settings :size="19" /></button>
           <template #dropdown>
