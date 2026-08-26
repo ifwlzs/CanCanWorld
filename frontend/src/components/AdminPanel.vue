@@ -86,7 +86,7 @@ const loading = ref(false)
 const query = ref('')
 const nodeType = ref<'all' | 'folder' | 'bookmark'>('all')
 const page = ref(1)
-const pageSize = 50
+const pageSize = ref(50)
 
 // 后台表格一次压平完整树，再由客户端筛选和分页，避免每次输入都重新请求全量数据。
 const flatNodes = computed(() => flattenNodes(props.nodes))
@@ -99,9 +99,9 @@ const filteredNodes = computed(() => {
       .some((value) => value.toLocaleLowerCase().includes(keyword))
   })
 })
-const pagedNodes = computed(() => filteredNodes.value.slice((page.value - 1) * pageSize, page.value * pageSize))
+const pagedNodes = computed(() => filteredNodes.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
 
-watch([query, nodeType], () => { page.value = 1 })
+watch([query, nodeType, pageSize], () => { page.value = 1 })
 watch(() => [props.checkJob?.status, props.faviconJob?.status], (statuses, previous) => {
   const finished = statuses.some((status, index) => status !== previous?.[index] && status && !['pending', 'running'].includes(status))
   if (finished) void loadSummary()
@@ -195,7 +195,14 @@ onMounted(() => void loadSummary())
             <el-table-column label="操作" width="104" fixed="right"><template #default="scope"><div class="table-actions"><el-tooltip content="编辑"><button class="icon-button" type="button" aria-label="编辑节点" @click="emit('edit', scope.row.node)"><Edit3 :size="16" /></button></el-tooltip><el-tooltip content="删除"><button class="icon-button danger" type="button" aria-label="删除节点" @click="emit('remove', scope.row.node)"><Trash2 :size="16" /></button></el-tooltip></div></template></el-table-column>
           </el-table>
         </div>
-        <el-pagination v-model:current-page="page" background layout="total, prev, pager, next" :page-size="pageSize" :total="filteredNodes.length" />
+        <el-pagination
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          background
+          layout="total, sizes, prev, pager, next, jumper"
+          :page-sizes="[20, 50, 100, 200]"
+          :total="filteredNodes.length"
+        />
       </section>
 
       <section v-else-if="activeTab === 'tasks'" v-loading="loading" class="admin-content task-layout">
