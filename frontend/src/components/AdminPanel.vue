@@ -30,6 +30,15 @@ interface AdminSummary {
     unavailable: number
     icons: number
   }
+  linkCheckSchedule: {
+    enabled: boolean
+    intervalSeconds: number
+    concurrency: number
+    perHostConcurrency: number
+    timeoutMs: number
+    allowedPorts: string
+    historyRetentionDays: number
+  }
   checkJobs: AdminJob[]
   faviconJobs: AdminJob[]
 }
@@ -133,6 +142,13 @@ function formatTime(value: string): string {
   return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 }
 
+/** 将环境变量中的秒数转换为后台可读的中文周期。 */
+function formatInterval(seconds: number): string {
+  if (seconds % 3600 === 0) return `${seconds / 3600} 小时`
+  if (seconds % 60 === 0) return `${seconds / 60} 分钟`
+  return `${seconds} 秒`
+}
+
 onMounted(() => void loadSummary())
 </script>
 
@@ -206,6 +222,17 @@ onMounted(() => void loadSummary())
       </section>
 
       <section v-else-if="activeTab === 'tasks'" v-loading="loading" class="admin-content task-layout">
+        <div class="admin-section schedule-section">
+          <div class="admin-section-heading"><div><h2>定时检测</h2><p>服务端按固定周期创建全库链接检测任务；存在运行中任务时会跳过本轮，避免任务堆积。</p></div><el-tag :type="summary?.linkCheckSchedule.enabled ? 'success' : 'info'" effect="plain">{{ summary?.linkCheckSchedule.enabled ? '已启用' : '未启用' }}</el-tag></div>
+          <div class="schedule-grid">
+            <div><span>执行周期</span><strong>{{ summary?.linkCheckSchedule ? formatInterval(summary.linkCheckSchedule.intervalSeconds) : '-' }}</strong></div>
+            <div><span>全局并发</span><strong>{{ summary?.linkCheckSchedule?.concurrency ?? '-' }}</strong></div>
+            <div><span>单主机并发</span><strong>{{ summary?.linkCheckSchedule?.perHostConcurrency ?? '-' }}</strong></div>
+            <div><span>单链接超时</span><strong>{{ summary?.linkCheckSchedule ? `${summary.linkCheckSchedule.timeoutMs} ms` : '-' }}</strong></div>
+            <div><span>允许端口</span><strong>{{ summary?.linkCheckSchedule?.allowedPorts || '-' }}</strong></div>
+            <div><span>历史保留</span><strong>{{ summary?.linkCheckSchedule ? `${summary.linkCheckSchedule.historyRetentionDays} 天` : '-' }}</strong></div>
+          </div>
+        </div>
         <div class="admin-section">
           <div class="admin-section-heading"><div><h2>链接检测</h2><p>查看最近任务或创建新的范围检测</p></div><div><button class="command-button" type="button" @click="emit('check', 'folder')">当前目录</button><button class="command-button primary" type="button" @click="emit('check', 'all')">全部链接</button></div></div>
           <div v-if="props.checkJob && ['pending', 'running'].includes(props.checkJob.status)" class="admin-task-progress">

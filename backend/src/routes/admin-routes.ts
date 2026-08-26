@@ -37,6 +37,16 @@ export function createAdminRoutes(dependencies: AppDependencies) {
           privateBookmarks: Number(counts?.private_bookmarks ?? 0), missingIcons: Number(counts?.missing_icons ?? 0),
           unavailable: Number(counts?.unavailable ?? 0), icons: Number(iconRows[0]?.icons ?? 0)
         },
+        // 调度配置只读展示给管理员，实际配置仍由部署环境变量统一管理。
+        linkCheckSchedule: {
+          enabled: true,
+          intervalSeconds: dependencies.env.LINK_CHECK_INTERVAL_SECONDS,
+          concurrency: dependencies.env.LINK_CHECK_CONCURRENCY,
+          perHostConcurrency: dependencies.env.LINK_CHECK_PER_HOST_CONCURRENCY,
+          timeoutMs: dependencies.env.LINK_CHECK_TIMEOUT_MS,
+          allowedPorts: dependencies.env.LINK_CHECK_ALLOWED_PORTS,
+          historyRetentionDays: dependencies.env.LINK_CHECK_HISTORY_RETENTION_DAYS
+        },
         checkJobs: checkJobs.map(mapJob),
         faviconJobs: faviconJobs.map(mapJob)
       }
