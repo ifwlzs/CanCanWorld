@@ -5,6 +5,7 @@ dist/
 release/
 coverage/
 artifacts/
+.worktrees/
 *.tsbuildinfo
 
 # 本地环境包含数据库和会话密钥，只提交示例文件。
