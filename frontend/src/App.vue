@@ -34,7 +34,7 @@ import AdminPanel from './components/AdminPanel.vue'
 import BookmarkIcon from './components/BookmarkIcon.vue'
 import FolderTree from './components/FolderTree.vue'
 import NodeEditor from './components/NodeEditor.vue'
-import { useNavigationStore } from './stores/navigation'
+import { NodeMutationRefreshError, useNavigationStore } from './stores/navigation'
 
 // 管理工具仅在用户打开时加载，避免导入和备份组件增加首屏脚本体积。
 const BackupDialog = defineAsyncComponent(() => import('./components/BackupDialog.vue'))
@@ -162,6 +162,11 @@ async function saveNode(input: CreateNodeInput): Promise<void> {
     editorOpen.value = false
     ElMessage.success('已保存')
   } catch (error) {
+    if (error instanceof NodeMutationRefreshError) {
+      editorOpen.value = false
+      ElMessage.error('已保存，但列表刷新失败，请稍后手动刷新')
+      return
+    }
     editorError.value = error instanceof Error ? error.message : '保存失败'
     ElMessage.error(editorError.value)
   } finally {
@@ -180,6 +185,10 @@ async function removeNode(node: NavigationNode): Promise<void> {
     await navigation.deleteNode(node.id)
     ElMessage.success('已删除')
   } catch (error) {
+    if (error instanceof NodeMutationRefreshError) {
+      ElMessage.error('已删除，但列表刷新失败，请稍后手动刷新')
+      return
+    }
     if (!(error instanceof ApiError) || error.code !== 40904) {
       showDeleteError(error)
       return

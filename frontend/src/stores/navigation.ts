@@ -3,6 +3,17 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { apiRequest } from '../api/client'
 
+/** 写请求已提交但列表刷新失败时携带操作类型，页面据此禁止重复写入。 */
+export class NodeMutationRefreshError extends Error {
+  readonly mutationCommitted = true
+
+  constructor(readonly operation: 'create' | 'update' | 'delete' | 'move', cause: unknown) {
+    super(cause instanceof Error ? cause.message : '列表刷新失败')
+    this.name = 'NodeMutationRefreshError'
+    this.cause = cause
+  }
+}
+
 /** 导航 Store 统一管理树、当前目录和搜索结果，避免视图分别维护冲突副本。 */
 export const useNavigationStore = defineStore('navigation', () => {
   const tree = ref<NavigationNode[]>([])
@@ -65,13 +76,21 @@ export const useNavigationStore = defineStore('navigation', () => {
   /** 新建后重载树，确保排序和服务端规范化结果一致。 */
   async function createNode(input: CreateNodeInput): Promise<void> {
     await apiRequest('/api/v1/nodes', { method: 'POST', body: JSON.stringify(input) })
-    await loadTree()
+    try {
+      await loadTree()
+    } catch (error) {
+      throw new NodeMutationRefreshError('create', error)
+    }
   }
 
   /** 更新后重载树，避免本地乐观更新遗漏后端派生字段。 */
   async function updateNode(id: number, input: UpdateNodeInput): Promise<void> {
     await apiRequest(`/api/v1/nodes/${id}`, { method: 'PUT', body: JSON.stringify(input) })
-    await loadTree()
+    try {
+      await loadTree()
+    } catch (error) {
+      throw new NodeMutationRefreshError('update', error)
+    }
   }
 
   /** 删除空节点；非空目录由页面在拿到冲突统计后再选择明确策略。 */
@@ -79,7 +98,11 @@ export const useNavigationStore = defineStore('navigation', () => {
     const suffix = strategy ? `?strategy=${strategy}` : ''
     await apiRequest(`/api/v1/nodes/${id}${suffix}`, { method: 'DELETE' })
     if (selectedFolderId.value === id) selectedFolderId.value = 1
-    await loadTree()
+    try {
+      await loadTree()
+    } catch (error) {
+      throw new NodeMutationRefreshError('delete', error)
+    }
   }
 
   /** 移动请求携带节点版本；后端负责循环检测和最终排序。 */
@@ -88,7 +111,11 @@ export const useNavigationStore = defineStore('navigation', () => {
       method: 'POST',
       body: JSON.stringify({ parentId, sortKey, updatedAt: node.updatedAt })
     })
-    await loadTree()
+    try {
+      await loadTree()
+    } catch (error) {
+      throw new NodeMutationRefreshError('move', error)
+    }
   }
 
   /** 在当前树中查找拖拽源节点，避免把完整敏感 URL 写入 DataTransfer。 */
