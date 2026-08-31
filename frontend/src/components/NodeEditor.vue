@@ -99,6 +99,7 @@ function clearFieldErrors(): void {
         <el-tree-select
           v-model="form.parentId"
           data-testid="node-parent"
+          popper-class="node-parent-popper"
           :data="folderOptions"
           node-key="id"
           :props="{ value: 'id', label: 'label', children: 'children' }"
@@ -139,7 +140,8 @@ function clearFieldErrors(): void {
     </el-form>
     <template #footer>
       <el-button data-testid="node-cancel" :disabled="props.saving" @click="close">取消</el-button>
-      <el-button data-testid="node-save" type="primary" :disabled="props.saving" :loading="props.saving" @click="submit">保存</el-button>
+      <!-- 保存按钮预留加载图标空间，避免异步状态切换时页脚发生横向跳动。 -->
+      <el-button data-testid="node-save" type="primary" style="width: 88px" :disabled="props.saving" :loading="props.saving" @click="submit">保存</el-button>
     </template>
   </el-dialog>
 </template>

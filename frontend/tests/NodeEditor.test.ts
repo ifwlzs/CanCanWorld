@@ -137,6 +137,18 @@ describe('节点编辑器', () => {
     expect(wrapper.emitted('submit')).toBeUndefined()
   })
 
+  it('保存按钮声明固定宽度以避免加载图标引发布局跳动', () => {
+    const wrapper = mountEditor()
+
+    expect((wrapper.get('[data-testid="node-save"]').element as HTMLButtonElement).style.width).toBe('88px')
+  })
+
+  it('目录选择器使用受视口约束的专用弹层样式', () => {
+    const wrapper = mountEditor()
+
+    expect(wrapper.get('[data-testid="node-parent"]').attributes('popper-class')).toBe('node-parent-popper')
+  })
+
   it('服务端失败时保留表单并展示可感知错误', async () => {
     const wrapper = mountEditor({ errorMessage: '服务器内部错误' })
     await wrapper.get('[data-testid="node-title"]').setValue('软件更新')
