@@ -284,21 +284,35 @@ async function deleteNodeRelations(connection: PoolConnection, nodeIds: number[]
   await connection.query(`DELETE FROM bookmark_check_job_item WHERE bookmark_id IN (${placeholders})`, nodeIds)
   await connection.query(`DELETE FROM favicon_job_item WHERE bookmark_id IN (${placeholders})`, nodeIds)
   await connection.query(`DELETE FROM bookmark_icon WHERE bookmark_id IN (${placeholders})`, nodeIds)
-  for (const job of jobs) {
-    await connection.execute(`
-      UPDATE bookmark_check_job
-      SET total = (SELECT COUNT(*) FROM bookmark_check_job_item WHERE job_id = ?), updated_at = ?
-      WHERE id = ?
-    `, [job.job_id, new Date(), job.job_id])
-  }
-  for (const job of faviconJobs) {
-    await connection.execute(`
-      UPDATE favicon_job
-      SET total = (SELECT COUNT(*) FROM favicon_job_item WHERE job_id = ?), updated_at = ?
-      WHERE id = ?
-    `, [job.job_id, new Date(), job.job_id])
-  }
+  await updateCheckJobTotals(connection, jobs.map((job) => String(job.job_id)))
+  await updateFaviconJobTotals(connection, faviconJobs.map((job) => String(job.job_id)))
   await connection.query('DELETE FROM tag WHERE NOT EXISTS (SELECT 1 FROM node_tag WHERE node_tag.tag_id = tag.id)')
+}
+
+/** 一条语句重算全部受影响检测任务，减少远程数据库往返和事务持锁时间。 */
+async function updateCheckJobTotals(connection: PoolConnection, jobIds: string[]): Promise<void> {
+  if (jobIds.length === 0) return
+  const placeholders = jobIds.map(() => '?').join(',')
+  await connection.query(`
+    UPDATE bookmark_check_job AS job
+    SET total = (
+      SELECT COUNT(*) FROM bookmark_check_job_item AS item WHERE item.job_id = job.id
+    ), updated_at = ?
+    WHERE id IN (${placeholders})
+  `, [new Date(), ...jobIds])
+}
+
+/** 一条语句重算全部受影响图标任务，确保任务历史与剩余项目数保持一致。 */
+async function updateFaviconJobTotals(connection: PoolConnection, jobIds: string[]): Promise<void> {
+  if (jobIds.length === 0) return
+  const placeholders = jobIds.map(() => '?').join(',')
+  await connection.query(`
+    UPDATE favicon_job AS job
+    SET total = (
+      SELECT COUNT(*) FROM favicon_job_item AS item WHERE item.job_id = job.id
+    ), updated_at = ?
+    WHERE id IN (${placeholders})
+  `, [new Date(), ...jobIds])
 }
 
 /** 统一节点形状约束在写入前执行，数据库 CHECK 作为第二道防线。 */
