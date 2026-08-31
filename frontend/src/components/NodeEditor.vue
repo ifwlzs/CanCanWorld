@@ -1,13 +1,23 @@
 <script setup lang="ts">
 import type { CreateNodeInput, NavigationNode } from '@cancanworld/contracts'
 import { computed, reactive, watch } from 'vue'
+import { buildFolderOptions, type NodeDraftErrors, validateNodeDraft } from './node-editor-model'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: boolean
   parentId: number
+  nodes?: NavigationNode[]
   node?: NavigationNode | null
   initialType?: 'folder' | 'bookmark'
-}>()
+  saving?: boolean
+  errorMessage?: string | null
+}>(), {
+  nodes: () => [],
+  node: null,
+  initialType: 'bookmark',
+  saving: false,
+  errorMessage: null
+})
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -16,7 +26,7 @@ const emit = defineEmits<{
 
 const form = reactive<CreateNodeInput>({
   parentId: props.parentId,
-  nodeType: props.initialType ?? 'bookmark',
+  nodeType: props.initialType,
   title: '',
   url: null,
   description: null,
@@ -25,14 +35,17 @@ const form = reactive<CreateNodeInput>({
   visibility: 'public',
   tags: []
 })
+const fieldErrors = reactive<NodeDraftErrors>({})
 
 const title = computed(() => props.node ? '编辑节点' : '新建节点')
+const folderOptions = computed(() => buildFolderOptions(props.nodes))
 
 /** 每次打开对话框时从目标节点重新建立表单，防止上次编辑残留。 */
 watch(() => props.modelValue, (open) => {
   if (!open) return
+  clearFieldErrors()
   form.parentId = props.node?.parentId ?? props.parentId
-  form.nodeType = props.node?.nodeType === 'folder' || props.node?.nodeType === 'bookmark' ? props.node.nodeType : (props.initialType ?? 'bookmark')
+  form.nodeType = props.node?.nodeType === 'folder' || props.node?.nodeType === 'bookmark' ? props.node.nodeType : props.initialType
   form.title = props.node?.title ?? ''
   form.url = props.node?.url ?? null
   form.description = props.node?.description ?? null
@@ -42,26 +55,70 @@ watch(() => props.modelValue, (open) => {
   form.tags = [...(props.node?.tags ?? [])]
 }, { immediate: true })
 
-/** 目录自动清空 URL，最终交叉校验仍由后端负责。 */
+/** 本地校验先给出可恢复提示，保存锁则阻止同一草稿产生重复请求。 */
 function submit(): void {
+  if (props.saving) return
   if (form.nodeType === 'folder') form.url = null
-  emit('submit', { ...form, tags: [...form.tags] })
+  clearFieldErrors()
+  Object.assign(fieldErrors, validateNodeDraft(form))
+  if (Object.keys(fieldErrors).length > 0) return
+  emit('submit', {
+    ...form,
+    title: form.title.trim(),
+    url: form.url?.trim() || null,
+    tags: [...form.tags]
+  })
+}
+
+/** 保存进行中时忽略所有关闭来源，避免请求完成后出现意外新增。 */
+function close(): void {
+  if (!props.saving) emit('update:modelValue', false)
+}
+
+/** 每次校验和重新打开前删除旧字段错误，防止修正后仍显示过期原因。 */
+function clearFieldErrors(): void {
+  delete fieldErrors.parentId
+  delete fieldErrors.title
+  delete fieldErrors.url
 }
 </script>
 
 <template>
-  <el-dialog :model-value="props.modelValue" :title="title" width="min(520px, calc(100vw - 32px))" @close="emit('update:modelValue', false)">
+  <el-dialog
+    :model-value="props.modelValue"
+    :title="title"
+    width="min(520px, calc(100vw - 32px))"
+    :close-on-click-modal="!props.saving"
+    :close-on-press-escape="!props.saving"
+    :show-close="!props.saving"
+    @close="close"
+  >
+    <el-alert v-if="props.errorMessage" :title="props.errorMessage" type="error" :closable="false" show-icon role="alert" />
     <el-form label-position="top" @submit.prevent="submit">
+      <el-form-item v-if="!props.node" label="保存到" :error="fieldErrors.parentId ?? ''">
+        <el-tree-select
+          v-model="form.parentId"
+          data-testid="node-parent"
+          :data="folderOptions"
+          node-key="id"
+          :props="{ value: 'id', label: 'label', children: 'children' }"
+          check-strictly
+          filterable
+          :render-after-expand="true"
+          placeholder="选择目标目录"
+          style="width: 100%"
+        />
+      </el-form-item>
       <el-form-item label="类型">
         <el-segmented v-model="form.nodeType" :options="[
           { label: '书签', value: 'bookmark' },
           { label: '目录', value: 'folder' }
         ]" />
       </el-form-item>
-      <el-form-item label="名称" required>
-        <el-input v-model="form.title" maxlength="512" show-word-limit />
+      <el-form-item label="名称" required :error="fieldErrors.title ?? ''">
+        <el-input v-model="form.title" data-testid="node-title" maxlength="512" show-word-limit />
       </el-form-item>
-      <el-form-item v-if="form.nodeType === 'bookmark'" label="地址" required>
+      <el-form-item v-if="form.nodeType === 'bookmark'" label="地址" required :error="fieldErrors.url ?? ''">
         <el-input v-model="form.url" type="textarea" :rows="3" />
       </el-form-item>
       <el-form-item v-if="form.nodeType === 'bookmark'" label="网站注释">
@@ -81,8 +138,8 @@ function submit(): void {
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" @click="submit">保存</el-button>
+      <el-button data-testid="node-cancel" :disabled="props.saving" @click="close">取消</el-button>
+      <el-button data-testid="node-save" type="primary" :disabled="props.saving" :loading="props.saving" @click="submit">保存</el-button>
     </template>
   </el-dialog>
 </template>
