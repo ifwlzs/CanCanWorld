@@ -63,6 +63,9 @@ const adminOpen = ref(false)
 const sidebarOpen = ref(false)
 const editingNode = ref<NavigationNode | null>(null)
 const initialType = ref<'folder' | 'bookmark'>('bookmark')
+const editorParentId = ref(1)
+const editorSaving = ref(false)
+const editorError = ref<string | null>(null)
 const theme = ref<'default' | 'compact' | 'bookmark'>('default')
 const layoutStyle = ref<'style1' | 'style2'>('style1')
 const draggedNode = ref<NavigationNode | null>(null)
@@ -136,22 +139,34 @@ async function logout(): Promise<void> {
   await navigation.loadTree()
 }
 
-/** 打开新建或编辑对话框，节点类型由触发按钮决定。 */
-function openEditor(type: 'folder' | 'bookmark', node: NavigationNode | null = null): void {
+/** 打开编辑器时固定来源目录；后台显式传入根目录，避免继承隐藏的前台上下文。 */
+function openEditor(type: 'folder' | 'bookmark', node: NavigationNode | null = null, parentId = navigation.selectedFolderId): void {
   initialType.value = type
   editingNode.value = node
+  editorParentId.value = node?.parentId ?? parentId
+  editorError.value = null
   editorOpen.value = true
 }
 
-/** 保存节点时编辑路径附带服务端时间戳，新建路径使用当前目录。 */
+/** 保存期间锁定编辑器；失败保留草稿和服务端原因，成功后才关闭并提示。 */
 async function saveNode(input: CreateNodeInput): Promise<void> {
-  if (editingNode.value) {
-    await navigation.updateNode(editingNode.value.id, { ...input, updatedAt: editingNode.value.updatedAt })
-  } else {
-    await navigation.createNode({ ...input, parentId: navigation.selectedFolderId })
+  if (editorSaving.value) return
+  editorSaving.value = true
+  editorError.value = null
+  try {
+    if (editingNode.value) {
+      await navigation.updateNode(editingNode.value.id, { ...input, updatedAt: editingNode.value.updatedAt })
+    } else {
+      await navigation.createNode(input)
+    }
+    editorOpen.value = false
+    ElMessage.success('已保存')
+  } catch (error) {
+    editorError.value = error instanceof Error ? error.message : '保存失败'
+    ElMessage.error(editorError.value)
+  } finally {
+    editorSaving.value = false
   }
-  editorOpen.value = false
-  ElMessage.success('已保存')
 }
 
 /** 非空目录由后端返回冲突后再显式确认级联删除。 */
@@ -163,9 +178,10 @@ async function removeNode(node: NavigationNode): Promise<void> {
   }
   try {
     await navigation.deleteNode(node.id)
+    ElMessage.success('已删除')
   } catch (error) {
     if (!(error instanceof ApiError) || error.code !== 40904) {
-      ElMessage.error(error instanceof Error ? error.message : '删除失败')
+      showDeleteError(error)
       return
     }
     const details = error.details as { childCount?: unknown } | null
@@ -174,8 +190,19 @@ async function removeNode(node: NavigationNode): Promise<void> {
       type: 'error',
       confirmButtonText: '删除全部'
     }).then(() => true, () => false)
-    if (confirmed) await navigation.deleteNode(node.id, 'cascade')
+    if (!confirmed) return
+    try {
+      await navigation.deleteNode(node.id, 'cascade')
+      ElMessage.success('已删除')
+    } catch (cascadeError) {
+      showDeleteError(cascadeError)
+    }
   }
+}
+
+/** 普通删除和级联删除共用错误出口，确保异步失败不会成为未处理 Promise。 */
+function showDeleteError(error: unknown): void {
+  ElMessage.error(error instanceof Error ? error.message : '删除失败')
 }
 
 /** JavaScript 书签只复制原文；普通 URL 才允许新窗口打开。 */
@@ -336,7 +363,7 @@ onMounted(async () => {
     :check-job="checkJob"
     :favicon-job="faviconJob"
     @close="adminOpen = false"
-    @create="openEditor($event)"
+    @create="openEditor($event, null, 1)"
     @edit="openEditor($event.nodeType === 'folder' ? 'folder' : 'bookmark', $event)"
     @remove="removeNode"
     @import="importOpen = true"
@@ -418,7 +445,7 @@ onMounted(async () => {
             </el-tooltip>
           </div>
           <div v-if="auth.authenticated" class="workspace-actions">
-            <el-dropdown trigger="click" @command="openEditor">
+            <el-dropdown trigger="click" @command="openEditor($event as 'folder' | 'bookmark')">
             <button class="command-button primary" type="button"><Plus :size="17" /><span>新建</span></button>
             <template #dropdown>
               <el-dropdown-menu>
@@ -528,9 +555,12 @@ onMounted(async () => {
   <AuthDialog v-model="authOpen" :initialized="auth.initialized" @authenticated="authenticated" />
   <NodeEditor
     v-model="editorOpen"
-    :parent-id="navigation.selectedFolderId"
+    :parent-id="editorParentId"
+    :nodes="navigation.tree"
     :node="editingNode"
     :initial-type="initialType"
+    :saving="editorSaving"
+    :error-message="editorError"
     @submit="saveNode"
   />
   <ImportDialog v-model="importOpen" :parent-id="navigation.selectedFolderId" @imported="navigation.loadTree" />
