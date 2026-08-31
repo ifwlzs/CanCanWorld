@@ -21,7 +21,7 @@
     "dev:frontend": "bun --filter @cancanworld/contracts build && bun --filter @cancanworld/frontend dev",
     "build": "bun --filter '*' build",
     "typecheck": "bun --filter @cancanworld/contracts build && bun --filter '*' typecheck && tsc -p tsconfig.scripts.json --noEmit",
-    "test": "bun --filter @cancanworld/backend test",
+    "test": "bun --filter @cancanworld/frontend test && bun --filter @cancanworld/backend test",
     "check": "bun run typecheck && bun run test && bun run build",
     "db:migrate": "bun --filter @cancanworld/backend db:migrate",
     "import:onenav": "bun backend/scripts/import-onenav.ts",

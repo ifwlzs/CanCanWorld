@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@cancanworld/contracts": "workspace:*",
@@ -18,9 +20,12 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^18.0.1",
     "typescript": "^5.9.2",
     "unplugin-vue-components": "^29.0.0",
     "vite": "^7.1.4",
+    "vitest": "^3.2.4",
     "vue-tsc": "^3.0.6"
   }
 }
