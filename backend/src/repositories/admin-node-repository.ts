@@ -278,7 +278,8 @@ function buildFilterParts(input: AdminNodeQuery): FilterParts {
 
   if (input.health.length > 0) {
     const healthConditions = input.health.map((health) => `(${HEALTH_SQL[health]})`)
-    conditions.push(`(${healthConditions.join(' OR ')})`)
+    // 目录没有检测语义且时间字段通常为空，必须先限定书签，避免被 unchecked 误命中。
+    conditions.push(`(n.node_type = 'bookmark' AND (${healthConditions.join(' OR ')}))`)
   }
 
   addRangeCondition(conditions, params, 'n.created_at', input.createdFrom, input.createdTo)

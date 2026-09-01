@@ -199,17 +199,25 @@ describe('管理员节点分页查询', () => {
     expect(execute.mock.calls[1]?.[1]).toEqual([1, 'folder', 'bookmark', 'react', 'vue'])
   })
 
-  it('多选健康状态在同一括号内 OR，不会放宽其他 AND 条件', async () => {
+  it('单选健康状态在默认混合节点类型下只匹配书签', async () => {
+    const { repository, execute } = repositoryWithRows()
+
+    await repository.query(adminNodeQuerySchema.parse({ health: ['unchecked'] }))
+
+    const countSql = normalizeSql(execute.mock.calls[1]?.[0])
+    expect(countSql).toContain("n.node_type IN (?,?) AND (n.node_type = 'bookmark' AND ((n.last_checked_at IS NULL)))")
+  })
+
+  it('多选健康状态限定书签并在同一括号内 OR，不会放宽其他 AND 条件', async () => {
     const { repository, execute } = repositoryWithRows()
 
     await repository.query(adminNodeQuerySchema.parse({
-      nodeTypes: ['bookmark'],
       visibility: 'private',
-      health: ['unchecked', 'responded']
+      health: ['unchecked', 'responded', 'unreachable']
     }))
 
     const countSql = normalizeSql(execute.mock.calls[1]?.[0])
-    expect(countSql).toContain("n.visibility = ? AND ((n.last_checked_at IS NULL) OR (n.last_checked_at IS NOT NULL AND n.last_http_status IS NOT NULL))")
+    expect(countSql).toContain("n.visibility = ? AND (n.node_type = 'bookmark' AND ((n.last_checked_at IS NULL) OR (n.last_checked_at IS NOT NULL AND n.last_http_status IS NOT NULL) OR (n.last_checked_at IS NOT NULL AND n.last_http_status IS NULL)))")
   })
 
   it('可见性、启用状态、创建时间和检测时间均使用参数化闭区间', async () => {
