@@ -5,6 +5,8 @@ import type {
   BrokenBookmark,
   BrokenBookmarkQuery,
   BrokenBookmarkResult,
+  BrokenCleanupInput,
+  BrokenCleanupResult,
   BrokenReason,
   DuplicateGroup,
   DuplicateGroupMember,
@@ -292,6 +294,37 @@ export class LinkGovernanceRepository {
       )
       await connection.commit()
       return { removed: input.removeIds.length }
+    } catch (error) {
+      await connection.rollback()
+      throw error
+    } finally {
+      connection.release()
+    }
+  }
+
+  /**
+   * 批量删除失效书签。
+   * 只删除书签：目录与不存在节点计入 skipped，不会因为单个非法 ID 让整批失败。
+   */
+  async cleanupBroken(input: BrokenCleanupInput): Promise<BrokenCleanupResult> {
+    const connection = await this.pool.getConnection()
+    try {
+      await connection.beginTransaction()
+      const [rows] = await connection.query<GroupNodeRow[]>(
+        `SELECT id, url_hash, node_type FROM navigation_node WHERE id IN (${input.nodeIds.map(() => '?').join(',')}) FOR UPDATE`,
+        input.nodeIds
+      )
+      const bookmarkIds = rows.filter((row) => row.node_type === 'bookmark').map((row) => Number(row.id))
+      const skipped = input.nodeIds.length - bookmarkIds.length
+      if (bookmarkIds.length > 0) {
+        await deleteNodeRelations(connection, bookmarkIds)
+        await connection.query(
+          `DELETE FROM navigation_node WHERE id IN (${bookmarkIds.map(() => '?').join(',')})`,
+          bookmarkIds
+        )
+      }
+      await connection.commit()
+      return { removed: bookmarkIds.length, skipped }
     } catch (error) {
       await connection.rollback()
       throw error

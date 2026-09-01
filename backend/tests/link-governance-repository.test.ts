@@ -192,6 +192,20 @@ describe('重复链接合并', () => {
     expect(connection.rollback).toHaveBeenCalledOnce()
   })
 
+  it('合并只删除待删除集合，不触及保留项', async () => {
+    const { repository, connection } = governanceRepository({
+      groupNodes: [
+        { id: 8, urlHash: hash, nodeType: 'bookmark' },
+        { id: 9, urlHash: hash, nodeType: 'bookmark' }
+      ]
+    })
+
+    await repository.mergeDuplicates({ keepId: 8, removeIds: [9] })
+
+    const deletion = vi.mocked(connection.query).mock.calls.find(([sql]) => normalize(sql).startsWith('DELETE FROM navigation_node'))
+    expect(deletion?.[1]).toEqual([9])
+  })
+
   it('删除失败时回滚事务且始终释放连接', async () => {
     const { repository, connection } = governanceRepository({
       groupNodes: [
@@ -202,6 +216,66 @@ describe('重复链接合并', () => {
     })
 
     await expect(repository.mergeDuplicates({ keepId: 8, removeIds: [9] })).rejects.toThrow('模拟删除失败')
+
+    expect(connection.rollback).toHaveBeenCalledOnce()
+    expect(connection.commit).not.toHaveBeenCalled()
+    expect(connection.release).toHaveBeenCalledOnce()
+  })
+})
+
+describe('失效书签批量清理', () => {
+  const hash = 'f'.repeat(64)
+
+  it('删除全部书签并清理关联数据', async () => {
+    const { repository, connection } = governanceRepository({
+      groupNodes: [
+        { id: 8, urlHash: hash, nodeType: 'bookmark' },
+        { id: 9, urlHash: hash, nodeType: 'bookmark' }
+      ]
+    })
+
+    const result = await repository.cleanupBroken({ nodeIds: [8, 9] })
+
+    expect(result).toEqual({ removed: 2, skipped: 0 })
+    const statements = statementsOf(vi.mocked(connection.query))
+    expect(statements.some((sql) => sql.startsWith('DELETE FROM node_tag'))).toBe(true)
+    expect(statements.some((sql) => sql.startsWith('DELETE FROM bookmark_check_log'))).toBe(true)
+    expect(connection.commit).toHaveBeenCalledOnce()
+  })
+
+  it('目录与不存在节点计入 skipped 且不被删除', async () => {
+    const { repository, connection } = governanceRepository({
+      groupNodes: [
+        { id: 8, urlHash: hash, nodeType: 'bookmark' },
+        { id: 9, urlHash: null, nodeType: 'folder' }
+      ]
+    })
+
+    const result = await repository.cleanupBroken({ nodeIds: [8, 9, 10] })
+
+    // 单个非法 ID 不应让整批失败，只统计跳过数量。
+    expect(result).toEqual({ removed: 1, skipped: 2 })
+    const deletion = vi.mocked(connection.query).mock.calls.find(([sql]) => normalize(sql).startsWith('DELETE FROM navigation_node'))
+    expect(deletion?.[1]).toEqual([8])
+  })
+
+  it('全部节点都不可删除时提交空事务且不执行删除语句', async () => {
+    const { repository, connection } = governanceRepository({ groupNodes: [] })
+
+    const result = await repository.cleanupBroken({ nodeIds: [8, 9] })
+
+    expect(result).toEqual({ removed: 0, skipped: 2 })
+    expect(statementsOf(vi.mocked(connection.query)).some((sql) => sql.startsWith('DELETE FROM navigation_node'))).toBe(false)
+    expect(connection.commit).toHaveBeenCalledOnce()
+  })
+
+  it('清理失败时回滚事务且始终释放连接', async () => {
+    const { repository, connection } = governanceRepository({
+      groupNodes: [{ id: 8, urlHash: hash, nodeType: 'bookmark' }],
+      rejectDelete: true
+    })
+
+    await expect(repository.cleanupBroken({ nodeIds: [8] })).rejects.toThrow('模拟删除失败')
 
     expect(connection.rollback).toHaveBeenCalledOnce()
     expect(connection.commit).not.toHaveBeenCalled()
