@@ -3,10 +3,11 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { validationError } from '../errors.js'
 import { requireAdmin } from '../middleware/auth.js'
+import { malformedJsonGuard } from '../middleware/json.js'
 import { AdminNodeRepository } from '../repositories/admin-node-repository.js'
+import { NodeRepository } from '../repositories/node-repository.js'
 import type { AdminNodeBatchTagInput, AdminNodeBatchTagResult, AdminNodeQuery, AdminNodeQueryResult } from '@cancanworld/contracts'
 import type { AppDependencies, AppVariables } from '../types.js'
-import { NodeRepository } from '../repositories/node-repository.js'
 
 /** Route 只依赖查询读接口，便于测试替换实现且不暴露 SQL 细节。 */
 export interface AdminNodeQueryReader {
@@ -35,6 +36,7 @@ export function createAdminNodeRoutes(
   routes.post(
     '/query',
     requireAdmin(),
+    malformedJsonGuard,
     zValidator('json', adminNodeQuerySchema, validatorHook),
     async (context) => context.json({
       code: 0,
@@ -46,6 +48,7 @@ export function createAdminNodeRoutes(
   routes.post(
     '/batch-tags',
     requireAdmin(),
+    malformedJsonGuard,
     zValidator('json', adminNodeBatchTagSchema, validatorHook),
     async (context) => context.json({
       code: 0,

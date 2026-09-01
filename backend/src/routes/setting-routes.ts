@@ -1,11 +1,11 @@
 import { Hono } from 'hono'
-import type { MiddlewareHandler } from 'hono'
 import type { RowDataPacket } from 'mysql2/promise'
 import { z } from 'zod'
 import { adminNodeFilterPresetListInputSchema } from '@cancanworld/contracts'
 import { zValidator } from '@hono/zod-validator'
 import { validationError } from '../errors.js'
 import { requireAdmin } from '../middleware/auth.js'
+import { malformedJsonGuard } from '../middleware/json.js'
 import { readAdminNodeFilters, writeAdminNodeFilters } from '../services/admin-node-filter-settings.js'
 import { readLinkCheckSchedule, writeLinkCheckSchedule } from '../services/link-check-settings.js'
 import type { AppDependencies, AppVariables } from '../types.js'
@@ -28,19 +28,6 @@ export function createSettingRoutes(dependencies: AppDependencies) {
   const validatorHook = (result: { success: boolean; error?: unknown }) => {
     if (!result.success) throw validationError(result.error)
   }
-  /** 预读请求体以将 Hono 的 JSON 解析异常转换为统一 422 envelope，后续 zValidator 复用缓存内容。 */
-  const malformedJsonGuard: MiddlewareHandler<{ Variables: AppVariables }> = async (context, next) => {
-    try {
-      await context.req.json()
-    } catch (error) {
-      if (error instanceof SyntaxError || (error instanceof Error && error.name === 'SyntaxError')) {
-        throw validationError(null)
-      }
-      throw error
-    }
-    await next()
-  }
-
   routes.get('/theme', async (context) => {
     const [rows] = await dependencies.pool.execute<RowDataPacket[]>("SELECT setting_value FROM app_setting WHERE setting_key = 'theme' LIMIT 1")
     const stored = rows[0] ? JSON.parse(String(rows[0].setting_value)) as unknown : {}
