@@ -128,14 +128,14 @@ export class NodeRepository {
       const existing = await loadTagsForConnection(connection, bookmarkIds)
       const requested = input.tags.map((tag) => tag.trim()).filter(Boolean)
       const requestedKeys = new Set(requested.map((tag) => tag.toLowerCase()))
+      const assignments = new Map<number, string[]>()
       for (const id of bookmarkIds) {
         const current = existing.get(id) ?? []
-        let next: string[]
-        if (input.mode === 'replace') next = requested
-        else if (input.mode === 'add') next = [...current, ...requested]
-        else next = current.filter((tag) => !requestedKeys.has(tag.toLowerCase()))
-        await replaceTags(connection, id, next)
+        if (input.mode === 'replace') assignments.set(id, requested)
+        else if (input.mode === 'add') assignments.set(id, [...current, ...requested])
+        else assignments.set(id, current.filter((tag) => !requestedKeys.has(tag.toLowerCase())))
       }
+      await replaceTagsForNodes(connection, assignments)
       await connection.commit()
       return { updated: bookmarkIds.length, skippedFolders, missing }
     } catch (error) {
@@ -367,6 +367,61 @@ async function replaceTags(connection: PoolConnection, nodeId: number, values: s
     const [rows] = await connection.execute<RowDataPacket[]>('SELECT id FROM tag WHERE normalized_name = ? LIMIT 1', [normalized])
     await connection.execute('INSERT INTO node_tag (node_id, tag_id) VALUES (?, ?)', [nodeId, rows[0]?.id])
   }
+}
+
+/**
+ * 批量替换多个节点的标签关联，语句数与节点和标签数量无关。
+ * 逐节点调用 replaceTags 在 200 节点 × 20 标签下会产生上万次往返并长时间持锁，
+ * 因此这里合并为一次删除、一次标签 upsert、一次标签查询和一次关联插入。
+ */
+async function replaceTagsForNodes(connection: PoolConnection, assignments: Map<number, string[]>): Promise<void> {
+  const nodeIds = [...assignments.keys()]
+  if (nodeIds.length === 0) return
+  await connection.query(`DELETE FROM node_tag WHERE node_id IN (${nodeIds.map(() => '?').join(',')})`, nodeIds)
+
+  // 先按大小写无关规则逐节点去重，再汇总全局待写入标签，保证展示名与既有写入路径一致。
+  const normalizedByNode = new Map<number, Array<[string, string]>>()
+  const displayByNormalized = new Map<string, string>()
+  for (const [nodeId, values] of assignments) {
+    const unique = [...new Map(values.map((value) => [value.trim().toLocaleLowerCase(), value.trim()])).entries()]
+      .filter(([normalized]) => normalized.length > 0)
+    normalizedByNode.set(nodeId, unique)
+    for (const [normalized, name] of unique) {
+      if (!displayByNormalized.has(normalized)) displayByNormalized.set(normalized, name)
+    }
+  }
+  const normalizedNames = [...displayByNormalized.keys()]
+  if (normalizedNames.length === 0) return
+
+  const createdAt = new Date()
+  const tagValues = normalizedNames.flatMap((normalized) => [displayByNormalized.get(normalized), normalized, createdAt])
+  // normalized_name 自赋值是显式的空操作，确保既有标签的展示名不会被本次写入改写。
+  await connection.query(
+    `INSERT INTO tag (name, normalized_name, created_at) VALUES ${normalizedNames.map(() => '(?, ?, ?)').join(',')}
+     ON DUPLICATE KEY UPDATE normalized_name = normalized_name`,
+    tagValues
+  )
+  const [tagRows] = await connection.query<RowDataPacket[]>(
+    `SELECT id, normalized_name FROM tag WHERE normalized_name IN (${normalizedNames.map(() => '?').join(',')})`,
+    normalizedNames
+  )
+  const tagIdByNormalized = new Map(tagRows.map((row) => [String(row.normalized_name), row.id]))
+
+  const relations: unknown[] = []
+  let relationCount = 0
+  for (const [nodeId, unique] of normalizedByNode) {
+    for (const [normalized] of unique) {
+      const tagId = tagIdByNormalized.get(normalized)
+      if (tagId === undefined) continue
+      relations.push(nodeId, tagId)
+      relationCount += 1
+    }
+  }
+  if (relationCount === 0) return
+  await connection.query(
+    `INSERT INTO node_tag (node_id, tag_id) VALUES ${Array.from({ length: relationCount }, () => '(?, ?)').join(',')}`,
+    relations
+  )
 }
 
 /** 批量事务使用同一连接读取现有标签，避免读到未提交的外部状态。 */
