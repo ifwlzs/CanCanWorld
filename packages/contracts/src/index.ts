@@ -114,13 +114,13 @@ type AdminNodeValidationFields = Pick<z.infer<typeof adminNodeQueryObjectSchema>
 
 /**
  * 查询集合和时间区间在分页查询与保存预设之间复用同一校验。
- * 标签按本地化小写值去重，防止仅大小写不同的条件重复参与查询。
+ * 标签按 locale-neutral 小写值去重，共享契约不能依赖浏览器或服务端的运行时区域设置。
  */
 function validateAdminNodeQuery(value: AdminNodeValidationFields, context: z.RefinementCtx): void {
   if (new Set(value.nodeTypes).size !== value.nodeTypes.length) {
     context.addIssue({ code: 'custom', path: ['nodeTypes'], message: '节点类型不能重复' })
   }
-  if (new Set(value.tags.map((tag) => tag.toLocaleLowerCase())).size !== value.tags.length) {
+  if (new Set(value.tags.map((tag) => tag.toLowerCase())).size !== value.tags.length) {
     context.addIssue({ code: 'custom', path: ['tags'], message: '标签不能重复' })
   }
   if (new Set(value.health).size !== value.health.length) {

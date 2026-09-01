@@ -3,15 +3,15 @@ import {
   adminNodeFilterPresetListInputSchema,
   adminNodeFilterPresetSchema,
   adminNodeQuerySchema
-} from '@cancanworld/contracts'
+} from '../../packages/contracts/src/index.js'
 import type {
   AdminNodeFilterPreset,
   AdminNodeFilterPresetInput,
   AdminNodeQuery,
   AdminNodeQueryResult,
   NavigationNode
-} from '@cancanworld/contracts'
-import { describe, expect, expectTypeOf, it } from 'vitest'
+} from '../../packages/contracts/src/index.js'
+import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 
 /** 预设测试数据显式描述浏览器提交结构，避免夹具无意携带服务端字段。 */
 interface PresetInputFixture {
@@ -102,6 +102,24 @@ describe('管理员节点查询契约', () => {
     expect(adminNodeQuerySchema.safeParse({ health: ['unchecked', 'unchecked'] }).success).toBe(false)
     expect(adminNodeQuerySchema.safeParse({ health: ['unchecked', 'responded', 'unreachable', 'unchecked'] }).success).toBe(false)
     expect(adminNodeQuerySchema.safeParse({ health: ['unknown'] }).success).toBe(false)
+  })
+
+  /**
+   * 共享契约不能依赖浏览器或服务端的默认区域设置。
+   * 这里模拟土耳其语默认小写规则，仍应保持 JavaScript locale-neutral 的标签语义。
+   */
+  it('使用不依赖运行时 locale 的标签去重规则', () => {
+    const originalLocaleLowerCase = String.prototype.toLocaleLowerCase
+    const localeLowerCase = vi.spyOn(String.prototype, 'toLocaleLowerCase').mockImplementation(function (this: string) {
+      return originalLocaleLowerCase.call(this, 'tr-TR')
+    })
+
+    try {
+      expect(adminNodeQuerySchema.safeParse({ tags: ['I', 'i'] }).success).toBe(false)
+      expect(adminNodeQuerySchema.safeParse({ tags: ['I', 'ı'] }).success).toBe(true)
+    } finally {
+      localeLowerCase.mockRestore()
+    }
   })
 
   /** 创建和检测日期各自形成闭区间，结束时间不能早于对应开始时间。 */
