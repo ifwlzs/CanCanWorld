@@ -32,8 +32,11 @@ export function createSettingRoutes(dependencies: AppDependencies) {
   const malformedJsonGuard: MiddlewareHandler<{ Variables: AppVariables }> = async (context, next) => {
     try {
       await context.req.json()
-    } catch {
-      throw validationError(null)
+    } catch (error) {
+      if (error instanceof SyntaxError || (error instanceof Error && error.name === 'SyntaxError')) {
+        throw validationError(null)
+      }
+      throw error
     }
     await next()
   }

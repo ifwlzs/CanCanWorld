@@ -31,12 +31,20 @@ function adminUser(): AuthUser {
 }
 
 /** 构造统一错误 envelope，并注入认证上下文与日志变量供真实中间件使用。 */
-function createRouteApp(dependencies: AppDependencies, user: AuthUser | null): Hono<{ Variables: AppVariables }> {
+function createRouteApp(dependencies: AppDependencies, user: AuthUser | null, jsonError?: Error): Hono<{ Variables: AppVariables }> {
   const app = new Hono<{ Variables: AppVariables }>()
   app.use('*', async (context, next) => {
     context.set('requestId', REQUEST_ID)
     context.set('logger', dependencies.logger)
     context.set('user', user)
+    if (jsonError) {
+      Object.defineProperty(context.req, 'json', {
+        configurable: true,
+        value: async () => {
+          throw jsonError
+        }
+      })
+    }
     await next()
   })
   app.route('/api/v1/settings', createSettingRoutes(dependencies))
@@ -111,6 +119,14 @@ describe('管理员节点筛选预设路由', () => {
     const response = await createRouteApp(dependencies, adminUser()).request(request)
     expect(response.status).toBe(422)
     expect(JSON.parse(await response.text()) as unknown).toMatchObject({ code: 42201, message: '请求参数校验失败' })
+    expect(dependencies.execute).not.toHaveBeenCalled()
+  })
+
+  it('PUT 非 SyntaxError 的请求体异常透传为 500 且不 upsert', async () => {
+    const dependencies = createDependencies()
+    const response = await createRouteApp(dependencies, adminUser(), new Error('stream failed')).request(filterRequest('PUT', [], RAW_CSRF_TOKEN))
+    expect(response.status).toBe(500)
+    expect(JSON.parse(await response.text()) as unknown).toEqual({ code: 50000, message: '服务器内部错误', data: null, requestId: REQUEST_ID })
     expect(dependencies.execute).not.toHaveBeenCalled()
   })
 
