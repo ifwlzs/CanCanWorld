@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { NavigationNode } from '@cancanworld/contracts'
+import type { AdminNodeFilterPreset, AdminNodeFilterPresetInput, AdminNodeQuery, NavigationNode } from '@cancanworld/contracts'
 import {
   Activity,
   ArrowLeft,
@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Search,
   Settings,
+  SlidersHorizontal,
   Trash2,
   X
 } from 'lucide-vue-next'
@@ -21,6 +22,9 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { apiRequest } from '../api/client'
 import BookmarkIcon from './BookmarkIcon.vue'
+import AdminNodeFilters from './AdminNodeFilters.vue'
+import { countAdvancedFilters, displayNodePath, locateFolderId } from './admin-node-model'
+import { useAdminNodeQuery } from '../composables/use-admin-node-query'
 
 interface AdminSummary {
   counts: {
@@ -49,11 +53,6 @@ interface AdminJob {
   createdAt: string
 }
 
-interface FlatNode {
-  node: NavigationNode
-  path: string
-}
-
 interface ActiveTask {
   id: string
   status: string
@@ -69,6 +68,8 @@ const props = defineProps<{
   theme: 'default' | 'compact' | 'bookmark'
   checkJob: ActiveTask | null
   faviconJob: ActiveTask | null
+  /** 节点写入后递增，后台表格据此刷新当前服务端查询。 */
+  refreshToken?: number
 }>()
 
 const emit = defineEmits<{
@@ -81,6 +82,7 @@ const emit = defineEmits<{
   check: [scope: 'folder' | 'all']
   favicon: [options: { folderId?: number; refresh: boolean; label: string }]
   'cancel-task': [kind: 'check' | 'favicon']
+  'locate-folder': [folderId: number]
   'layout-change': [value: 'style1' | 'style2']
   'theme-change': [value: 'default' | 'compact' | 'bookmark']
 }>()
@@ -88,33 +90,52 @@ const emit = defineEmits<{
 const activeTab = ref('overview')
 const summary = ref<AdminSummary | null>(null)
 const loading = ref(false)
-const query = ref('')
-const nodeType = ref<'all' | 'folder' | 'bookmark'>('all')
-const page = ref(1)
-const pageSize = ref(50)
+const filterOpen = ref(false)
+const presets = ref<AdminNodeFilterPreset[]>([])
+const savingPresets = ref(false)
+const nodeQuery = useAdminNodeQuery()
+const draftQuery = nodeQuery.draft
+const appliedQuery = computed(() => nodeQuery.applied.value)
+const nodeLoading = computed(() => nodeQuery.loading.value)
+const nodeError = computed(() => nodeQuery.errorMessage.value)
+const nodeType = computed({
+  get: () => nodeQuery.draft.nodeTypes.length === 1 ? nodeQuery.draft.nodeTypes[0] : 'all',
+  set: (value: 'all' | 'folder' | 'bookmark') => {
+    nodeQuery.draft.nodeTypes = value === 'all' ? ['folder', 'bookmark'] : [value]
+  }
+})
+watch(nodeType, (value, previous) => {
+  if (activeTab.value === 'nodes' && value !== previous) void nodeQuery.applyDraft()
+})
+const nodeRows = computed(() => nodeQuery.items.value.map((node) => ({ node, path: displayNodePath(node) })))
+const availableTags = computed(() => {
+  const seen = new Set<string>()
+  const tags: string[] = []
+  const visit = (items: NavigationNode[]): void => {
+    for (const item of items) {
+      for (const tag of item.tags) {
+        const trimmed = tag.trim()
+        const key = trimmed.toLowerCase()
+        if (trimmed && !seen.has(key)) { seen.add(key); tags.push(trimmed) }
+      }
+      if (item.children?.length) visit(item.children)
+    }
+  }
+  visit(props.nodes)
+  return tags
+})
 const scheduleForm = reactive({ enabled: true, intervalSeconds: 1800 })
 const scheduleSaving = ref(false)
 
-// 后台表格一次压平完整树，再由客户端筛选和分页，避免每次输入都重新请求全量数据。
-const flatNodes = computed(() => flattenNodes(props.nodes))
-const filteredNodes = computed(() => {
-  const keyword = query.value.trim().toLocaleLowerCase()
-  return flatNodes.value.filter(({ node, path }) => {
-    if (nodeType.value !== 'all' && node.nodeType !== nodeType.value) return false
-    if (!keyword) return true
-    return [node.title, node.url ?? '', node.remark ?? '', node.description ?? '', node.tags.join(' '), path]
-      .some((value) => value.toLocaleLowerCase().includes(keyword))
-  })
-})
-const pagedNodes = computed(() => filteredNodes.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
-
-watch([query, nodeType, pageSize], () => { page.value = 1 })
 watch(() => [props.checkJob?.status, props.faviconJob?.status], (statuses, previous) => {
   const finished = statuses.some((status, index) => status !== previous?.[index] && status && !['pending', 'running'].includes(status))
   if (finished) void loadSummary()
 })
+watch(() => props.refreshToken, () => {
+  if (activeTab.value === 'nodes') void nodeQuery.refresh()
+})
 
-/** 后台概览聚合数据独立刷新，节点表继续复用前台已经加载的完整树。 */
+/** 后台概览聚合数据独立刷新，节点表查询由服务端分页接口负责。 */
 async function loadSummary(): Promise<void> {
   loading.value = true
   try {
@@ -145,15 +166,57 @@ async function saveSchedule(): Promise<void> {
   }
 }
 
-/** 递归压平目录树并保留完整目录路径，供后台统一检索和表格展示。 */
-function flattenNodes(nodes: NavigationNode[], ancestors: string[] = []): FlatNode[] {
-  const result: FlatNode[] = []
-  for (const node of nodes) {
-    const path = [...ancestors, node.title]
-    result.push({ node, path: path.join(' / ') })
-    if (node.children?.length) result.push(...flattenNodes(node.children, path))
-  }
-  return result
+/** 切换到节点页时才发起服务端查询，避免打开后台概览就加载大表。 */
+function openNodesTab(): void {
+  activeTab.value = 'nodes'
+  void nodeQuery.refresh()
+}
+
+/** 读取当前管理员的筛选预设；损坏设置由服务端统一回退为空数组。 */
+async function loadPresets(): Promise<void> {
+  try { presets.value = await apiRequest<AdminNodeFilterPreset[]>('/api/v1/settings/admin-node-filters') } catch { presets.value = [] }
+}
+
+/** 用整集合覆盖保存预设，成功后以服务端规范化时间和查询为准。 */
+async function persistPresets(next: AdminNodeFilterPresetInput[]): Promise<void> {
+  savingPresets.value = true
+  try {
+    presets.value = await apiRequest<AdminNodeFilterPreset[]>('/api/v1/settings/admin-node-filters', { method: 'PUT', body: JSON.stringify(next) })
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '保存筛选预设失败')
+  } finally { savingPresets.value = false }
+}
+
+/** 将抽屉提交的草稿交给共享查询模型，统一校验并重置分页。 */
+function applyFilter(value: AdminNodeQuery): void {
+  Object.assign(nodeQuery.draft, value)
+  void nodeQuery.applyDraft()
+}
+
+function applyPreset(preset: AdminNodeFilterPreset): void {
+  /** 预设不携带瞬时页码，应用后回到第一页并触发服务端查询。 */
+  Object.assign(nodeQuery.draft, preset.query, { page: 1 })
+  void nodeQuery.applyDraft()
+}
+
+/** 高级筛选重置保留预设列表，只恢复共享查询默认值。 */
+function resetFilter(): void { void nodeQuery.reset() }
+
+/** 新预设追加到当前集合，服务端负责校验名称、UUID 和数量上限。 */
+function savePreset(input: AdminNodeFilterPresetInput): void {
+  const next = [...presets.value.map(({ updatedAt: _updatedAt, ...preset }) => preset), input]
+  void persistPresets(next)
+}
+
+/** 重命名只改动目标预设，避免覆盖其他已保存筛选。 */
+function renamePreset(input: { id: string; name: string }): void {
+  const next = presets.value.map((preset) => preset.id === input.id ? { ...preset, name: input.name } : preset)
+  void persistPresets(next.map(({ updatedAt: _updatedAt, ...preset }) => preset))
+}
+
+/** 删除预设后以整集合写回设置项，保证服务端状态与列表一致。 */
+function deletePreset(id: string): void {
+  void persistPresets(presets.value.filter((preset) => preset.id !== id).map(({ updatedAt: _updatedAt, ...preset }) => preset))
 }
 
 /** 最近任务时间按当前浏览器的中文区域设置展示。 */
@@ -168,7 +231,7 @@ function formatInterval(seconds: number): string {
   return `${seconds} 秒`
 }
 
-onMounted(() => void loadSummary())
+onMounted(() => { void loadSummary(); void loadPresets() })
 </script>
 
 <template>
@@ -177,7 +240,7 @@ onMounted(() => void loadSummary())
       <div class="admin-brand"><span class="brand-mark">C</span><div><strong>CanCanWorld</strong><span>后台管理</span></div></div>
       <nav class="admin-nav" aria-label="后台导航">
         <button :class="{ 'is-active': activeTab === 'overview' }" type="button" @click="activeTab = 'overview'"><LayoutDashboard :size="18" />概览</button>
-        <button :class="{ 'is-active': activeTab === 'nodes' }" type="button" @click="activeTab = 'nodes'"><Link2 :size="18" />书签与目录</button>
+        <button :class="{ 'is-active': activeTab === 'nodes' }" type="button" @click="openNodesTab"><Link2 :size="18" />书签与目录</button>
         <button :class="{ 'is-active': activeTab === 'tasks' }" type="button" @click="activeTab = 'tasks'; loadSummary()"><Activity :size="18" />后台任务</button>
         <button :class="{ 'is-active': activeTab === 'appearance' }" type="button" @click="activeTab = 'appearance'"><Settings :size="18" />外观设置</button>
       </nav>
@@ -214,15 +277,17 @@ onMounted(() => void loadSummary())
 
       <section v-else-if="activeTab === 'nodes'" class="admin-content">
         <div class="admin-toolbar">
-          <label class="admin-search"><Search :size="16" /><input v-model="query" type="search" placeholder="搜索名称、地址、备注、注释、标签或路径" /></label>
+          <label class="admin-search"><Search :size="16" /><input v-model="draftQuery.keyword" type="search" placeholder="搜索名称、地址、备注、注释、标签或路径" @keyup.enter="nodeQuery.applyDraft" /></label>
           <el-segmented v-model="nodeType" :options="[{ label: '全部', value: 'all' }, { label: '书签', value: 'bookmark' }, { label: '目录', value: 'folder' }]" />
+          <button class="command-button" type="button" @click="filterOpen = true"><SlidersHorizontal :size="16" />高级筛选<span v-if="countAdvancedFilters(appliedQuery)" class="filter-count">{{ countAdvancedFilters(appliedQuery) }}</span></button>
           <button class="command-button primary" type="button" @click="emit('create', 'bookmark')"><Plus :size="16" />新建书签</button>
         </div>
+        <p v-if="nodeError" class="admin-query-error" role="alert">{{ nodeError }}</p>
         <div class="admin-table-wrap">
-          <el-table :data="pagedNodes" height="100%" row-key="node.id">
+          <el-table v-loading="nodeLoading" :data="nodeRows" height="100%" row-key="node.id">
             <el-table-column label="图标" width="64"><template #default="scope"><span class="admin-node-icon"><BookmarkIcon :node="scope.row.node" :size="20" /></span></template></el-table-column>
             <el-table-column label="名称与备注" min-width="250"><template #default="scope"><div class="admin-node-copy"><strong>{{ scope.row.node.title }}</strong><span>{{ scope.row.node.remark || scope.row.node.description || scope.row.node.url || '目录' }}</span></div></template></el-table-column>
-            <el-table-column label="路径" min-width="220" prop="path" show-overflow-tooltip />
+            <el-table-column label="路径" min-width="220"><template #default="scope"><button class="admin-node-path" :data-testid="`node-path-folder-${locateFolderId(scope.row.node)}`" type="button" :title="scope.row.path" @click="emit('locate-folder', locateFolderId(scope.row.node))">{{ scope.row.path }}</button></template></el-table-column>
             <el-table-column label="类型" width="84"><template #default="scope">{{ scope.row.node.nodeType === 'folder' ? '目录' : '书签' }}</template></el-table-column>
             <el-table-column label="可见性" width="90"><template #default="scope"><el-tag size="small" effect="plain">{{ scope.row.node.visibility === 'private' ? '私有' : '公开' }}</el-tag></template></el-table-column>
             <el-table-column label="状态" width="112"><template #default="scope">{{ scope.row.node.lastCheckStatus || '未检测' }}</template></el-table-column>
@@ -231,12 +296,28 @@ onMounted(() => void loadSummary())
           </el-table>
         </div>
         <el-pagination
-          v-model:current-page="page"
-          v-model:page-size="pageSize"
           background
           layout="total, sizes, prev, pager, next, jumper"
           :page-sizes="[20, 50, 100, 200]"
-          :total="filteredNodes.length"
+          :current-page="appliedQuery.page"
+          :page-size="appliedQuery.pageSize"
+          :total="nodeQuery.total.value"
+          @current-change="nodeQuery.changePage"
+          @size-change="nodeQuery.changePageSize"
+        />
+        <AdminNodeFilters
+          v-model="filterOpen"
+          :query="draftQuery"
+          :nodes="props.nodes"
+          :tags="availableTags"
+          :presets="presets"
+          :saving-presets="savingPresets"
+          @apply="applyFilter"
+          @reset="resetFilter"
+          @apply-preset="applyPreset"
+          @save-preset="savePreset"
+          @rename-preset="renamePreset"
+          @delete-preset="deletePreset"
         />
       </section>
 

@@ -60,6 +60,8 @@ const editorOpen = ref(false)
 const importOpen = ref(false)
 const backupOpen = ref(false)
 const adminOpen = ref(false)
+/** 节点写入后递增版本，通知后台服务端分页表格刷新当前查询。 */
+const adminRefreshToken = ref(0)
 const sidebarOpen = ref(false)
 const editingNode = ref<NavigationNode | null>(null)
 const initialType = ref<'folder' | 'bookmark'>('bookmark')
@@ -159,10 +161,12 @@ async function saveNode(input: CreateNodeInput): Promise<void> {
     } else {
       await navigation.createNode(input)
     }
+    adminRefreshToken.value += 1
     editorOpen.value = false
     ElMessage.success('已保存')
   } catch (error) {
     if (error instanceof NodeMutationRefreshError) {
+      adminRefreshToken.value += 1
       editorOpen.value = false
       ElMessage.error('已保存，但列表刷新失败，请稍后手动刷新')
       return
@@ -183,9 +187,11 @@ async function removeNode(node: NavigationNode): Promise<void> {
   }
   try {
     await navigation.deleteNode(node.id)
+    adminRefreshToken.value += 1
     ElMessage.success('已删除')
   } catch (error) {
     if (error instanceof NodeMutationRefreshError) {
+      adminRefreshToken.value += 1
       ElMessage.error('已删除，但列表刷新失败，请稍后手动刷新')
       return
     }
@@ -202,11 +208,19 @@ async function removeNode(node: NavigationNode): Promise<void> {
     if (!confirmed) return
     try {
       await navigation.deleteNode(node.id, 'cascade')
+      adminRefreshToken.value += 1
       ElMessage.success('已删除')
     } catch (cascadeError) {
+      if (cascadeError instanceof NodeMutationRefreshError) adminRefreshToken.value += 1
       showDeleteError(cascadeError)
     }
   }
+}
+
+/** 后台路径定位关闭管理面板并切换前台目录，保持用户可继续编辑该目录内容。 */
+function locateAdminFolder(folderId: number): void {
+  navigation.selectFolder(folderId)
+  adminOpen.value = false
 }
 
 /** 普通删除和级联删除共用错误出口，确保异步失败不会成为未处理 Promise。 */
@@ -371,6 +385,7 @@ onMounted(async () => {
     :theme="theme"
     :check-job="checkJob"
     :favicon-job="faviconJob"
+    :refresh-token="adminRefreshToken"
     @close="adminOpen = false"
     @create="openEditor($event, null, 1)"
     @edit="openEditor($event.nodeType === 'folder' ? 'folder' : 'bookmark', $event)"
@@ -380,6 +395,7 @@ onMounted(async () => {
     @check="$event === 'all' ? runChecks({ scope: 'all', label: '全部链接' }) : runChecks({ scope: 'folder', folderId: navigation.selectedFolderId, label: '当前目录链接' })"
     @favicon="runFavicons"
     @cancel-task="cancelActiveTask"
+    @locate-folder="locateAdminFolder"
     @layout-change="changeLayoutStyle"
     @theme-change="changeTheme"
   />
