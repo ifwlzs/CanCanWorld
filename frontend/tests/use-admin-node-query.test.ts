@@ -23,22 +23,24 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void; reje
 }
 
 describe('useAdminNodeQuery', () => {
-  it('posts applied snapshot and suppresses stale response/finally state', async () => {
+  it('keeps loading while stale old response finishes before the new request', async () => {
     const first = deferred<AdminNodeQueryResult>()
     const second = deferred<AdminNodeQueryResult>()
     const requester = vi.fn<(path: string, init: RequestInit) => Promise<AdminNodeQueryResult>>()
       .mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
     const state = useAdminNodeQuery(requester)
-    const firstRefresh = state.refresh()
-    const secondRefresh = state.refresh()
+    const oldRefresh = state.refresh()
+    state.draft.keyword = 'new'
+    const newRefresh = state.applyDraft()
     expect(state.loading.value).toBe(true)
-    second.resolve(result(2, 2)); await secondRefresh
+    first.resolve(result(1, 1)); await oldRefresh
+    expect(state.items.value).toEqual([])
+    expect(state.total.value).toBe(0)
+    expect(state.loading.value).toBe(true)
+    second.resolve(result(2, 2)); await newRefresh
     expect(state.items.value[0]?.id).toBe(2)
     expect(state.total.value).toBe(2)
     expect(state.loading.value).toBe(false)
-    first.resolve(result(1, 1)); await firstRefresh
-    expect(state.items.value[0]?.id).toBe(2)
-    expect(state.total.value).toBe(2)
     expect(requester).toHaveBeenCalledWith('/api/v1/admin/nodes/query', expect.objectContaining({ method: 'POST' }))
     const body = JSON.parse(String(requester.mock.calls[0]?.[1].body)) as { page: number }
     expect(body.page).toBe(1)
@@ -75,6 +77,18 @@ describe('useAdminNodeQuery', () => {
     await state.changePageSize(20)
     expect(state.applied.value.page).toBe(1)
     expect(state.applied.value.pageSize).toBe(20)
+    const callCountBeforeInvalidSize = requester.mock.calls.length
+    await state.changePageSize(30)
+    expect(requester.mock.calls).toHaveLength(callCountBeforeInvalidSize)
+    expect(state.applied.value.pageSize).toBe(20)
+    await state.changePage(Number.NaN)
+    expect(state.applied.value.page).toBe(1)
+    const nanBody = JSON.parse(String(requester.mock.calls.at(-1)?.[1].body)) as { page: number }
+    expect(nanBody.page).toBe(1)
+    await state.changePage(Number.POSITIVE_INFINITY)
+    expect(state.applied.value.page).toBe(1)
+    const infinityBody = JSON.parse(String(requester.mock.calls.at(-1)?.[1].body)) as { page: number }
+    expect(infinityBody.page).toBe(1)
     await state.reset()
     expect(state.draft.keyword).toBe('')
   })
