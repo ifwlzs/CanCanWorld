@@ -142,6 +142,13 @@ button { letter-spacing: 0; }
 .node-parent-popper .el-tree-node__content { min-width: 0; max-width: 100%; overflow: hidden; padding-right: 8px; }
 .node-parent-popper .el-tree-node__label,
 .node-parent-popper .el-tree-node__content > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 抓取按钮与说明文字同行；窄屏说明换行到下一行避免挤压按钮。 */
+.node-metadata-actions { margin-top: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+.node-metadata-actions .el-button > span { display: inline-flex; align-items: center; gap: 6px; }
+.node-metadata-actions > span { color: var(--muted); font-size: 12px; }
+@media (max-width: 640px) {
+  .node-metadata-actions > span { flex-basis: 100%; }
+}
 .auth-error { margin-bottom: 14px; }
 .mobile-only { display: none; }
 
