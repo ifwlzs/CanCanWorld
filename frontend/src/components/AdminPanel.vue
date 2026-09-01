@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Search,
   Settings,
+  ShieldAlert,
   SlidersHorizontal,
   Tags,
   Trash2,
@@ -24,6 +25,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { apiRequest } from '../api/client'
 import BookmarkIcon from './BookmarkIcon.vue'
+import AdminGovernance from './AdminGovernance.vue'
 import AdminNodeFilters from './AdminNodeFilters.vue'
 import { countAdvancedFilters, displayNodePath, locateFolderId } from './admin-node-model'
 import { useAdminNodeQuery } from '../composables/use-admin-node-query'
@@ -107,6 +109,7 @@ const batchTagMode = ref<'add' | 'remove' | 'replace'>('add')
 const batchTagValues = ref<string[]>([])
 const selectedRows = ref<Array<{ node: NavigationNode; path: string }>>([])
 const nodeTable = ref<{ clearSelection: () => void } | null>(null)
+const governanceView = ref<{ refresh: () => Promise<void> } | null>(null)
 const nodeQuery = useAdminNodeQuery()
 const draftQuery = nodeQuery.draft
 const appliedQuery = computed(() => nodeQuery.applied.value)
@@ -259,7 +262,28 @@ function openNodesTab(): void {
 /** 顶部刷新按钮按当前页面刷新对应数据，避免概览请求覆盖节点查询状态。 */
 function refreshCurrentView(): void {
   if (activeTab.value === 'nodes') void nodeQuery.refresh()
+  else if (activeTab.value === 'governance') void governanceView.value?.refresh()
   else void loadSummary()
+}
+
+/** 治理视图请求编辑某个书签时，切回节点页并按 ID 定位，复用既有编辑入口。 */
+function locateNodeForEdit(nodeId: number): void {
+  const target = findNodeById(props.nodes, nodeId)
+  if (!target) {
+    ElMessage.warning('该书签可能已被删除，请刷新后重试')
+    return
+  }
+  emit('edit', target)
+}
+
+/** 在完整树中按 ID 查找节点；治理接口只返回 ID，编辑器需要完整节点。 */
+function findNodeById(nodes: NavigationNode[], id: number): NavigationNode | null {
+  for (const node of nodes) {
+    if (node.id === id) return node
+    const found = node.children?.length ? findNodeById(node.children, id) : null
+    if (found) return found
+  }
+  return null
 }
 
 /** 关键词输入使用短防抖减少连续请求，按 Enter 可立即提交并清理待执行计时器。 */
@@ -351,6 +375,7 @@ onMounted(() => { void loadSummary(); void loadPresets() })
       <nav class="admin-nav" aria-label="后台导航">
         <button :class="{ 'is-active': activeTab === 'overview' }" type="button" @click="activeTab = 'overview'"><LayoutDashboard :size="18" />概览</button>
         <button :class="{ 'is-active': activeTab === 'nodes' }" type="button" @click="openNodesTab"><Link2 :size="18" />书签与目录</button>
+        <button :class="{ 'is-active': activeTab === 'governance' }" type="button" @click="activeTab = 'governance'"><ShieldAlert :size="18" />链接治理</button>
         <button :class="{ 'is-active': activeTab === 'tasks' }" type="button" @click="activeTab = 'tasks'; loadSummary()"><Activity :size="18" />后台任务</button>
         <button :class="{ 'is-active': activeTab === 'appearance' }" type="button" @click="activeTab = 'appearance'"><Settings :size="18" />外观设置</button>
       </nav>
@@ -359,7 +384,7 @@ onMounted(() => { void loadSummary(); void loadPresets() })
 
     <main class="admin-main">
       <header class="admin-header">
-        <div><p>站点管理</p><h1>{{ activeTab === 'overview' ? '运行概览' : activeTab === 'nodes' ? '书签与目录' : activeTab === 'tasks' ? '后台任务' : '外观设置' }}</h1></div>
+        <div><p>站点管理</p><h1>{{ activeTab === 'overview' ? '运行概览' : activeTab === 'nodes' ? '书签与目录' : activeTab === 'governance' ? '链接治理' : activeTab === 'tasks' ? '后台任务' : '外观设置' }}</h1></div>
         <el-tooltip content="刷新数据" placement="bottom"><button class="icon-button bordered" type="button" aria-label="刷新后台数据" @click="refreshCurrentView"><RefreshCw :size="17" /></button></el-tooltip>
       </header>
 
@@ -452,6 +477,10 @@ onMounted(() => { void loadSummary(); void loadPresets() })
             <el-button type="primary" :loading="batchTagSaving" :disabled="batchTagSaving" style="width: 96px" data-testid="batch-submit" @click="submitBatchTags">确认修改</el-button>
           </template>
         </el-dialog>
+      </section>
+
+      <section v-else-if="activeTab === 'governance'" class="admin-content">
+        <AdminGovernance ref="governanceView" @nodes-changed="emit('tags-updated')" @edit-node="locateNodeForEdit" />
       </section>
 
       <section v-else-if="activeTab === 'tasks'" v-loading="loading" class="admin-content task-layout">

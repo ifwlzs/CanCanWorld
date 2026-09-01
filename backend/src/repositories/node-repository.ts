@@ -309,7 +309,7 @@ export class NodeRepository {
 }
 
 /** 无数据库外键时，节点删除事务必须先清理全部关联记录并重算仍保留的任务总数。 */
-async function deleteNodeRelations(connection: PoolConnection, nodeIds: number[]): Promise<void> {
+export async function deleteNodeRelations(connection: PoolConnection, nodeIds: number[]): Promise<void> {
   if (nodeIds.length === 0) return
   const placeholders = nodeIds.map(() => '?').join(',')
   const [jobs] = await connection.query<RowDataPacket[]>(`SELECT DISTINCT job_id FROM bookmark_check_job_item WHERE bookmark_id IN (${placeholders})`, nodeIds)

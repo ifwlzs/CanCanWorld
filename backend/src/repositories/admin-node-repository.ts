@@ -1,6 +1,7 @@
 import type { AdminNodeQuery, AdminNodeQueryResult, NavigationNode } from '@cancanworld/contracts'
 import type { Pool, RowDataPacket } from 'mysql2/promise'
 import { AppError } from '../errors.js'
+import { loadNodePaths, loadNodeTags, ROOT_DISPLAY_TITLE, throwFolderCycleError } from './node-metadata-loaders.js'
 import { getBookmarkType } from '../utils/url.js'
 
 /** 管理员列表节点行只接受可编辑的目录和书签，不暴露系统根或旧分隔线。 */
@@ -28,22 +29,6 @@ interface AdminNodeRow extends RowDataPacket {
 /** 计数查询只读取当前筛选命中的节点总量。 */
 interface CountRow extends RowDataPacket {
   count: string | number
-  cycle_detected: string | number
-}
-
-/** 标签查询按节点分组，名称顺序由 SQL 固定。 */
-interface TagRow extends RowDataPacket {
-  node_id: string | number
-  name: string
-}
-
-/** 路径查询保留深度，便于从系统根到直属父目录稳定组装。 */
-interface PathRow extends RowDataPacket {
-  node_id: string | number
-  ancestor_id: string | number
-  node_type: 'root' | 'folder'
-  title: string
-  depth: string | number
   cycle_detected: string | number
 }
 
@@ -82,9 +67,6 @@ const DIRECTION_SQL: Record<QueryDirection, 'ASC' | 'DESC'> = {
   asc: 'ASC',
   desc: 'DESC'
 }
-
-/** 系统根数据库标题是内部标识 ROOT，管理员界面始终使用稳定中文显示名。 */
-const ROOT_DISPLAY_TITLE = '全部书签'
 
 /** 管理员节点 Repository 负责验证范围、执行分页并集中完成数据库字段映射。 */
 export class AdminNodeRepository {
@@ -126,7 +108,7 @@ export class AdminNodeRepository {
     `, [...filter.params, input.pageSize, offset])
 
     const ids = rows.map((row) => Number(row.id))
-    const [tags, paths] = await Promise.all([this.loadTags(ids), this.loadPaths(ids)])
+    const [tags, paths] = await Promise.all([loadNodeTags(this.pool, ids), loadNodePaths(this.pool, ids)])
     const items = rows.map((row) => mapNode(
       row,
       tags.get(Number(row.id)) ?? [],
@@ -145,72 +127,6 @@ export class AdminNodeRepository {
     if (rows.length === 0) throw new AppError(404, 40401, '节点不存在')
   }
 
-  /** 只为当前页节点批量加载标签；空 ID 集合不会生成非法 IN ()。 */
-  private async loadTags(ids: number[]): Promise<Map<number, string[]>> {
-    const result = new Map<number, string[]>()
-    if (ids.length === 0) return result
-    const placeholders = ids.map(() => '?').join(',')
-    const [rows] = await this.pool.query<TagRow[]>(`
-      SELECT nt.node_id, t.name
-      FROM node_tag AS nt
-      INNER JOIN tag AS t ON t.id = nt.tag_id
-      WHERE nt.node_id IN (${placeholders})
-      ORDER BY t.name ASC, t.id ASC
-    `, ids)
-    for (const row of rows) {
-      const nodeId = Number(row.node_id)
-      const values = result.get(nodeId) ?? []
-      values.push(row.name)
-      result.set(nodeId, values)
-    }
-    return result
-  }
-
-  /**
-   * 从当前页节点向上递归加载祖先目录，包含系统根标题但不包含节点自身。
-   * 深度倒序确保路径按“系统根 -> 直属父目录”输出，且不扫描整张目录表。
-   */
-  private async loadPaths(ids: number[]): Promise<Map<number, string[]>> {
-    const result = new Map<number, string[]>()
-    if (ids.length === 0) return result
-    const placeholders = ids.map(() => '?').join(',')
-    const [rows] = await this.pool.query<PathRow[]>(`
-      WITH RECURSIVE path_settings AS (
-        SELECT ? AS root_display_title
-      ), ancestors (node_id, ancestor_id, parent_id, node_type, title, depth, visited_ids, cycle_detected) AS (
-        SELECT n.id AS node_id, parent.id AS ancestor_id, parent.parent_id, parent.node_type,
-               CASE WHEN parent.node_type = 'root' THEN settings.root_display_title ELSE parent.title END,
-               1 AS depth,
-               CAST(CONCAT(',', n.id, ',', parent.id, ',') AS CHAR(65535)) AS visited_ids,
-               n.id = parent.id AS cycle_detected
-        FROM navigation_node AS n
-        INNER JOIN navigation_node AS parent ON parent.id = n.parent_id
-        CROSS JOIN path_settings AS settings
-        WHERE n.id IN (${placeholders}) AND parent.node_type IN ('root', 'folder')
-        UNION ALL
-        SELECT ancestors.node_id, parent.id AS ancestor_id, parent.parent_id, parent.node_type,
-               CASE WHEN parent.node_type = 'root' THEN settings.root_display_title ELSE parent.title END,
-               ancestors.depth + 1,
-               CONCAT(ancestors.visited_ids, parent.id, ','),
-               LOCATE(CONCAT(',', parent.id, ','), ancestors.visited_ids) > 0
-        FROM ancestors
-        INNER JOIN navigation_node AS parent ON parent.id = ancestors.parent_id
-        CROSS JOIN path_settings AS settings
-        WHERE ancestors.cycle_detected = 0 AND parent.node_type IN ('root', 'folder')
-      )
-      SELECT node_id, ancestor_id, node_type, title, depth, cycle_detected
-      FROM ancestors
-      ORDER BY node_id ASC, depth DESC, ancestor_id ASC
-    `, [ROOT_DISPLAY_TITLE, ...ids])
-    if (rows.some((row) => Number(row.cycle_detected) > 0)) throwFolderCycleError()
-    for (const row of rows) {
-      const nodeId = Number(row.node_id)
-      const values = result.get(nodeId) ?? []
-      values.push(row.node_type === 'root' ? ROOT_DISPLAY_TITLE : row.title)
-      result.set(nodeId, values)
-    }
-    return result
-  }
 }
 
 /**
@@ -400,11 +316,6 @@ function addRangeCondition(
 /** LIKE 使用感叹号转义自身、百分号和下划线，不受 NO_BACKSLASH_ESCAPES 会话模式影响。 */
 function escapeLikePattern(value: string): string {
   return value.replaceAll('!', '!!').replaceAll('%', '!%').replaceAll('_', '!_')
-}
-
-/** 所有目录递归检测到父子环时使用统一、可审计的数据完整性错误。 */
-function throwFolderCycleError(): never {
-  throw new AppError(500, 50001, '目录数据存在循环，无法生成完整路径')
 }
 
 /** 根据固定字段与方向映射生成稳定排序；检测时间为空的记录始终置于末尾。 */
