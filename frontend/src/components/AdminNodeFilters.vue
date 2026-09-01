@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AdminNodeFilterPreset, AdminNodeFilterPresetInput, AdminNodeQuery, NavigationNode } from '@cancanworld/contracts'
-import { computed, h, reactive, ref, watch } from 'vue'
+import { computed, h, reactive, ref, watch, type VNode } from 'vue'
 import { Check, Pencil, RotateCcw, Save, SlidersHorizontal, Trash2, X } from 'lucide-vue-next'
 import { buildFolderOptions } from './node-editor-model'
 import { cloneAdminNodeQuery } from './admin-node-model'
@@ -25,8 +25,8 @@ const emit = defineEmits<{
 }>()
 
 const draft = reactive<AdminNodeQuery>(cloneAdminNodeQuery(props.query))
-const createdRange = ref<Date[]>([])
-const checkedRange = ref<Date[]>([])
+const createdRange = ref<Array<Date | null>>([])
+const checkedRange = ref<Array<Date | null>>([])
 const presetName = ref('')
 const renamingId = ref<string | null>(null)
 const renameName = ref('')
@@ -35,7 +35,7 @@ const folderOptions = computed(() => buildFolderOptions(props.nodes))
 const uniqueTags = computed(() => {
   const seen = new Set<string>()
   return props.tags.map((tag) => tag.trim()).filter((tag) => {
-    const key = tag.toLocaleLowerCase('en-US')
+    const key = tag.toLowerCase()
     if (!tag || seen.has(key)) return false
     seen.add(key)
     return true
@@ -63,14 +63,14 @@ watch(() => props.query, (value) => {
 }, { deep: true })
 
 /** 将可选的两个边界转换成日期控件需要的稳定数组形状。 */
-function toRange(from: string | undefined, to: string | undefined): Date[] {
-  return from || to ? [from, to].filter((value): value is string => Boolean(value)).map((value) => new Date(value)) : []
+function toRange(from: string | undefined, to: string | undefined): Array<Date | null> {
+  return from || to ? [from ? new Date(from) : null, to ? new Date(to) : null] : []
 }
 
 /** 日期控件可能返回 Date 或 ISO 字符串；统一为可被共享 Schema 校验的 ISO 值。 */
 function setRange(target: 'created' | 'checked', value: unknown): void {
   const values = Array.isArray(value) ? value : []
-  const dates = values.map((item) => item instanceof Date ? item : new Date(String(item))).filter((item) => !Number.isNaN(item.getTime()))
+  const dates = values.map((item) => item === null || item === undefined || item === '' ? null : item instanceof Date ? item : new Date(String(item))).map((item) => item && Number.isNaN(item.getTime()) ? null : item)
   if (target === 'created') {
     createdRange.value = dates
     draft.createdFrom = dates[0]?.toISOString()
@@ -83,8 +83,9 @@ function setRange(target: 'created' | 'checked', value: unknown): void {
 }
 
 /** 为深层目录标签提供原生 tooltip，长名称仍由弹层样式省略显示。 */
-function renderFolderLabel(data: { label: string }): ReturnType<typeof h> {
-  return h('span', { title: data.label }, data.label)
+function renderFolderLabel(render: typeof h, context: { data: { label?: string } }): VNode {
+  const label = context.data.label ?? ''
+  return render('span', { title: label }, label)
 }
 
 /** 兼容 Element 事件和语义测试桩可能发出的字符串布尔值。 */

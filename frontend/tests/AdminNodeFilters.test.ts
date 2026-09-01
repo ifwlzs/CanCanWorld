@@ -1,6 +1,6 @@
 import type { AdminNodeFilterPreset, AdminNodeQuery, NavigationNode } from '@cancanworld/contracts'
 import { mount, type VueWrapper } from '@vue/test-utils'
-import { defineComponent, h, type Component, type PropType } from 'vue'
+import { defineComponent, h, type Component, type PropType, type VNode } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import AdminNodeFilters from '../src/components/AdminNodeFilters.vue'
 
@@ -217,5 +217,13 @@ describe('后台高级筛选抽屉', () => {
   it('无节点时安全渲染目录选择器', () => {
     const wrapper = mountFilters({ nodes: [] })
     expect(wrapper.find('[data-testid="filter-folder"]').exists()).toBe(true)
+  })
+
+  it('目录 render-content 按 Element Plus 回调签名显示长名称 tooltip', () => {
+    const wrapper = mountFilters()
+    const vm = wrapper.vm as unknown as { renderFolderLabel: (render: typeof h, context: { data: { label: string } }) => VNode }
+    const rendered = vm.renderFolderLabel(h, { data: { label: '很长的目录名称' } })
+    expect(rendered.props?.title).toBe('很长的目录名称')
+    expect(rendered.children).toBe('很长的目录名称')
   })
 })
