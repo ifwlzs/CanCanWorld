@@ -1,8 +1,10 @@
 import { Hono } from 'hono'
 import type { RowDataPacket } from 'mysql2/promise'
 import { z } from 'zod'
+import { adminNodeFilterPresetListInputSchema } from '@cancanworld/contracts'
 import { validationError } from '../errors.js'
 import { requireAdmin } from '../middleware/auth.js'
+import { readAdminNodeFilters, writeAdminNodeFilters } from '../services/admin-node-filter-settings.js'
 import { readLinkCheckSchedule, writeLinkCheckSchedule } from '../services/link-check-settings.js'
 import type { AppDependencies, AppVariables } from '../types.js'
 
@@ -34,6 +36,16 @@ export function createSettingRoutes(dependencies: AppDependencies) {
       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = VALUES(updated_at)
     `, [JSON.stringify(parsed.data), new Date()])
     return context.json({ code: 0, message: 'success', data: parsed.data })
+  })
+  routes.get('/admin-node-filters', requireAdmin(), async (context) => {
+    const data = await readAdminNodeFilters(dependencies.pool, context.get('logger'))
+    return context.json({ code: 0, message: 'success', data })
+  })
+  routes.put('/admin-node-filters', requireAdmin(), async (context) => {
+    const parsed = adminNodeFilterPresetListInputSchema.safeParse(await context.req.json())
+    if (!parsed.success) throw validationError(parsed.error)
+    const data = await writeAdminNodeFilters(dependencies.pool, parsed.data)
+    return context.json({ code: 0, message: 'success', data })
   })
   routes.get('/link-check', requireAdmin(), async (context) => {
     return context.json({ code: 0, message: 'success', data: await readLinkCheckSchedule(dependencies.pool) })
