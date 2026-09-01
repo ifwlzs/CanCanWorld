@@ -226,4 +226,12 @@ describe('后台高级筛选抽屉', () => {
     expect(rendered.props?.title).toBe('很长的目录名称')
     expect(rendered.children).toBe('很长的目录名称')
   })
+
+  it('日期单边结束边界保留在结束位置', () => {
+    const wrapper = mountFilters()
+    const vm = wrapper.vm as unknown as { toRange: (from: string | undefined, to: string | undefined) => Array<Date | null> }
+    const range = vm.toRange(undefined, '2026-09-02T00:00:00.000Z')
+    expect(range[0]).toBeNull()
+    expect(range[1]?.toISOString()).toBe('2026-09-02T00:00:00.000Z')
+  })
 })
