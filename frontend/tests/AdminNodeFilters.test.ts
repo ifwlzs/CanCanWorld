@@ -187,6 +187,16 @@ describe('后台高级筛选抽屉', () => {
     vi.restoreAllMocks()
   })
 
+  it('非安全上下文没有 randomUUID 时仍生成合法 UUID', async () => {
+    vi.spyOn(crypto, 'randomUUID').mockImplementation(() => { throw new Error('secure context required') })
+    const wrapper = mountFilters()
+    await wrapper.get('[data-testid="preset-name"]').setValue('兼容筛选')
+    await wrapper.get('[data-testid="preset-save"]').trigger('click')
+    const input = wrapper.emitted('save-preset')?.[0]?.[0] as { id: string }
+    expect(input.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    vi.restoreAllMocks()
+  })
+
   it('应用预设克隆查询，支持重命名和删除', async () => {
     const first = preset('p1', '常用', query({ folderId: 8 }))
     const wrapper = mountFilters({ presets: [first] })

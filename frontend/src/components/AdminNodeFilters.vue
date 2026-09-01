@@ -123,12 +123,31 @@ function reset(): void {
   emit('reset')
 }
 
+/** 生成预设标识；HTTP/LAN 部署可能没有 randomUUID，使用随机字节或时间熵兜底。 */
+function createPresetId(): string {
+  try {
+    if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  } catch {
+    // 某些非安全上下文访问 randomUUID 会直接抛出异常，继续走兼容分支。
+  }
+  const bytes = new Uint8Array(16)
+  if (typeof crypto.getRandomValues === 'function') crypto.getRandomValues(bytes)
+  else {
+    const now = Date.now()
+    for (let index = 0; index < bytes.length; index += 1) bytes[index] = (now + Math.random() * 256) & 0xff
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = [...bytes].map((value) => value.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
 /** 预设只保存持久筛选条件，剥离 page 后再交给共享输入契约。 */
 function savePreset(): void {
   const name = presetName.value.trim()
   if (props.savingPresets || !name) return
   const { page: _page, ...savedQuery } = cloneAdminNodeQuery(draft)
-  emit('save-preset', { id: crypto.randomUUID(), name, query: savedQuery })
+  emit('save-preset', { id: createPresetId(), name, query: savedQuery })
   presetName.value = ''
 }
 
