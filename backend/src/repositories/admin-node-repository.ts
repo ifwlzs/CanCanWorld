@@ -28,6 +28,7 @@ interface AdminNodeRow extends RowDataPacket {
 /** 计数查询只读取当前筛选命中的节点总量。 */
 interface CountRow extends RowDataPacket {
   count: string | number
+  cycle_detected: string | number
 }
 
 /** 标签查询按节点分组，名称顺序由 SQL 固定。 */
@@ -40,8 +41,10 @@ interface TagRow extends RowDataPacket {
 interface PathRow extends RowDataPacket {
   node_id: string | number
   ancestor_id: string | number
+  node_type: 'root' | 'folder'
   title: string
   depth: string | number
+  cycle_detected: string | number
 }
 
 /** 查询片段同时保存 SQL 与占位符参数，避免 count 和 page 的筛选语义漂移。 */
@@ -51,6 +54,7 @@ interface FilterParts {
   whereSql: string
   params: SqlParameter[]
   hasTreePath: boolean
+  cycleSql: string
 }
 
 /** 管理员筛选只需要 mysql2 可执行参数中的这四类标量。 */
@@ -79,6 +83,9 @@ const DIRECTION_SQL: Record<QueryDirection, 'ASC' | 'DESC'> = {
   desc: 'DESC'
 }
 
+/** 系统根数据库标题是内部标识 ROOT，管理员界面始终使用稳定中文显示名。 */
+const ROOT_DISPLAY_TITLE = '全部书签'
+
 /** 管理员节点 Repository 负责验证范围、执行分页并集中完成数据库字段映射。 */
 export class AdminNodeRepository {
   /** 连接池由应用数据库层注入，Repository 不持有独占连接。 */
@@ -95,11 +102,13 @@ export class AdminNodeRepository {
     // 计数与分页复用完全相同的 CTE、FROM 和 WHERE，防止筛选结果不一致。
     const [countRows] = await this.pool.execute<CountRow[]>(`
       ${filter.cteSql}
-      SELECT COUNT(*) AS count
+      SELECT COUNT(*) AS count, ${filter.cycleSql} AS cycle_detected
       ${filter.fromSql}
       WHERE ${filter.whereSql}
     `, [...filter.params])
-    const total = Number(countRows[0]?.count ?? 0)
+    const countRow = countRows[0]
+    if (Number(countRow?.cycle_detected ?? 0) > 0) throwFolderCycleError()
+    const total = Number(countRow?.count ?? 0)
     if (total === 0) return { items: [], total, page: input.page, pageSize: input.pageSize }
 
     const offset = (input.page - 1) * input.pageSize
@@ -166,25 +175,38 @@ export class AdminNodeRepository {
     if (ids.length === 0) return result
     const placeholders = ids.map(() => '?').join(',')
     const [rows] = await this.pool.query<PathRow[]>(`
-      WITH RECURSIVE ancestors AS (
-        SELECT n.id AS node_id, parent.id AS ancestor_id, parent.parent_id, parent.title, 1 AS depth
+      WITH RECURSIVE path_settings AS (
+        SELECT ? AS root_display_title
+      ), ancestors (node_id, ancestor_id, parent_id, node_type, title, depth, visited_ids, cycle_detected) AS (
+        SELECT n.id AS node_id, parent.id AS ancestor_id, parent.parent_id, parent.node_type,
+               CASE WHEN parent.node_type = 'root' THEN settings.root_display_title ELSE parent.title END,
+               1 AS depth,
+               CAST(CONCAT(',', n.id, ',', parent.id, ',') AS CHAR(65535)) AS visited_ids,
+               n.id = parent.id AS cycle_detected
         FROM navigation_node AS n
         INNER JOIN navigation_node AS parent ON parent.id = n.parent_id
+        CROSS JOIN path_settings AS settings
         WHERE n.id IN (${placeholders}) AND parent.node_type IN ('root', 'folder')
         UNION ALL
-        SELECT ancestors.node_id, parent.id AS ancestor_id, parent.parent_id, parent.title, ancestors.depth + 1
+        SELECT ancestors.node_id, parent.id AS ancestor_id, parent.parent_id, parent.node_type,
+               CASE WHEN parent.node_type = 'root' THEN settings.root_display_title ELSE parent.title END,
+               ancestors.depth + 1,
+               CONCAT(ancestors.visited_ids, parent.id, ','),
+               LOCATE(CONCAT(',', parent.id, ','), ancestors.visited_ids) > 0
         FROM ancestors
         INNER JOIN navigation_node AS parent ON parent.id = ancestors.parent_id
-        WHERE parent.node_type IN ('root', 'folder')
+        CROSS JOIN path_settings AS settings
+        WHERE ancestors.cycle_detected = 0 AND parent.node_type IN ('root', 'folder')
       )
-      SELECT node_id, ancestor_id, title, depth
+      SELECT node_id, ancestor_id, node_type, title, depth, cycle_detected
       FROM ancestors
       ORDER BY node_id ASC, depth DESC, ancestor_id ASC
-    `, ids)
+    `, [ROOT_DISPLAY_TITLE, ...ids])
+    if (rows.some((row) => Number(row.cycle_detected) > 0)) throwFolderCycleError()
     for (const row of rows) {
       const nodeId = Number(row.node_id)
       const values = result.get(nodeId) ?? []
-      values.push(row.title)
+      values.push(row.node_type === 'root' ? ROOT_DISPLAY_TITLE : row.title)
       result.set(nodeId, values)
     }
     return result
@@ -198,64 +220,95 @@ export class AdminNodeRepository {
 function buildFilterParts(input: AdminNodeQuery): FilterParts {
   const ctes: string[] = []
   const conditions: string[] = []
-  const params: SqlParameter[] = []
+  const cteParams: SqlParameter[] = []
+  const whereParams: SqlParameter[] = []
+  const cycleSources: string[] = []
   let fromSql = 'FROM navigation_node AS n'
   let hasTreePath = false
 
   if (input.includeDescendants) {
-    // sort_path 每一级同时编码 sort_key 和 id，保证树序在相同排序键下仍然稳定。
+    // 每层路径最多增加 42 字符；CHAR(65535) 可覆盖 MySQL 默认 1000 层递归上限约 41999 字符。
     ctes.push(`
-      scope (id, sort_path) AS (
+      scope (id, sort_path, visited_ids, cycle_detected) AS (
         SELECT child.id,
-               CAST(CONCAT(LPAD(child.sort_key, 20, '0'), ':', LPAD(child.id, 20, '0')) AS CHAR(4096)) AS sort_path
+               CAST(CONCAT(LPAD(child.sort_key, 20, '0'), ':', LPAD(child.id, 20, '0')) AS CHAR(65535)) AS sort_path,
+               CAST(CONCAT(',', child.id, ',') AS CHAR(65535)) AS visited_ids,
+               0 AS cycle_detected
         FROM navigation_node AS child
         WHERE child.parent_id = ?
         UNION ALL
         SELECT child.id,
-               CONCAT(scope.sort_path, '/', LPAD(child.sort_key, 20, '0'), ':', LPAD(child.id, 20, '0'))
+               CONCAT(scope.sort_path, '/', LPAD(child.sort_key, 20, '0'), ':', LPAD(child.id, 20, '0')),
+               CONCAT(scope.visited_ids, child.id, ','),
+               LOCATE(CONCAT(',', child.id, ','), scope.visited_ids) > 0
         FROM navigation_node AS child
         INNER JOIN scope ON child.parent_id = scope.id
+        WHERE scope.cycle_detected = 0
       )
     `)
-    params.push(input.folderId)
-    fromSql += ' INNER JOIN scope AS selected_scope ON selected_scope.id = n.id'
+    cteParams.push(input.folderId)
+    cycleSources.push('(SELECT COALESCE(MAX(cycle_detected), 0) FROM scope)')
+    fromSql += ' INNER JOIN scope AS selected_scope ON selected_scope.id = n.id AND selected_scope.cycle_detected = 0'
     hasTreePath = true
   } else {
     conditions.push('n.parent_id = ?')
-    params.push(input.folderId)
+    whereParams.push(input.folderId)
   }
 
   if (input.keyword.length > 0) {
-    // 每个候选节点从直属父目录向系统根递归，避免把后代或同名无关目录误判为路径命中。
+    ctes.push('query_settings AS (SELECT ? AS root_display_title)')
+    cteParams.push(ROOT_DISPLAY_TITLE)
+    const candidateScopeSql = input.includeDescendants
+      ? 'INNER JOIN scope AS keyword_scope ON keyword_scope.id = candidate.id AND keyword_scope.cycle_detected = 0'
+      : ''
+    const candidateWhereSql = input.includeDescendants ? '' : 'candidate.parent_id = ? AND '
+    if (!input.includeDescendants) cteParams.push(input.folderId)
+    // 只从当前范围候选节点向上递归；visited 使用逗号边界，避免 1 与 11 互相误判。
     ctes.push(`
-      keyword_ancestors (node_id, parent_id, title) AS (
-        SELECT candidate.id, parent.parent_id, parent.title
+      keyword_ancestors (node_id, parent_id, title, visited_ids, cycle_detected) AS (
+        SELECT candidate.id, parent.parent_id,
+               CASE WHEN parent.node_type = 'root' THEN settings.root_display_title ELSE parent.title END,
+               CAST(CONCAT(',', candidate.id, ',', parent.id, ',') AS CHAR(65535)),
+               candidate.id = parent.id
         FROM navigation_node AS candidate
+        ${candidateScopeSql}
         INNER JOIN navigation_node AS parent ON parent.id = candidate.parent_id
-        WHERE parent.node_type IN ('root', 'folder')
+        CROSS JOIN query_settings AS settings
+        WHERE ${candidateWhereSql}parent.node_type IN ('root', 'folder')
         UNION ALL
-        SELECT keyword_ancestors.node_id, parent.parent_id, parent.title
+        SELECT keyword_ancestors.node_id, parent.parent_id,
+               CASE WHEN parent.node_type = 'root' THEN settings.root_display_title ELSE parent.title END,
+               CONCAT(keyword_ancestors.visited_ids, parent.id, ','),
+               LOCATE(CONCAT(',', parent.id, ','), keyword_ancestors.visited_ids) > 0
         FROM keyword_ancestors
         INNER JOIN navigation_node AS parent ON parent.id = keyword_ancestors.parent_id
-        WHERE parent.node_type IN ('root', 'folder')
+        CROSS JOIN query_settings AS settings
+        WHERE keyword_ancestors.cycle_detected = 0 AND parent.node_type IN ('root', 'folder')
       )
     `)
+    cycleSources.push('(SELECT COALESCE(MAX(cycle_detected), 0) FROM keyword_ancestors)')
   }
 
   const nodeTypes = input.nodeTypes.map((nodeType) => NODE_TYPE_VALUES[nodeType])
   conditions.push(`n.node_type IN (${nodeTypes.map(() => '?').join(',')})`)
-  params.push(...nodeTypes)
+  whereParams.push(...nodeTypes)
 
   if (input.visibility !== undefined) {
     conditions.push('n.visibility = ?')
-    params.push(input.visibility)
+    whereParams.push(input.visibility)
   }
   if (input.enabled !== undefined) {
     conditions.push('n.enabled = ?')
-    params.push(input.enabled)
+    whereParams.push(input.enabled)
   }
 
   const normalizedTags = input.tags.map((tag) => tag.trim().toLowerCase())
+  const requiresBookmark = normalizedTags.length > 0
+    || input.health.length > 0
+    || input.checkedFrom !== undefined
+    || input.checkedTo !== undefined
+  if (requiresBookmark) conditions.push("n.node_type = 'bookmark'")
+
   if (normalizedTags.length > 0 && input.tagMode === 'any') {
     conditions.push(`EXISTS (
       SELECT 1
@@ -264,7 +317,7 @@ function buildFilterParts(input: AdminNodeQuery): FilterParts {
       WHERE matched_node_tag.node_id = n.id
         AND matched_tag.normalized_name IN (${normalizedTags.map(() => '?').join(',')})
     )`)
-    params.push(...normalizedTags)
+    whereParams.push(...normalizedTags)
   } else if (normalizedTags.length > 0) {
     conditions.push(`(
       SELECT COUNT(DISTINCT matched_tag.normalized_name)
@@ -273,45 +326,57 @@ function buildFilterParts(input: AdminNodeQuery): FilterParts {
       WHERE matched_node_tag.node_id = n.id
         AND matched_tag.normalized_name IN (${normalizedTags.map(() => '?').join(',')})
     ) = ?`)
-    params.push(...normalizedTags, normalizedTags.length)
+    whereParams.push(...normalizedTags, normalizedTags.length)
   }
 
-  if (input.health.length > 0) {
-    const healthConditions = input.health.map((health) => `(${HEALTH_SQL[health]})`)
-    // 目录没有检测语义且时间字段通常为空，必须先限定书签，避免被 unchecked 误命中。
-    conditions.push(`(n.node_type = 'bookmark' AND (${healthConditions.join(' OR ')}))`)
-  }
+  const healthCondition = buildHealthCondition(input.health)
+  if (healthCondition !== undefined) conditions.push(healthCondition)
 
-  addRangeCondition(conditions, params, 'n.created_at', input.createdFrom, input.createdTo)
-  addRangeCondition(conditions, params, 'n.last_checked_at', input.checkedFrom, input.checkedTo)
+  addRangeCondition(conditions, whereParams, 'n.created_at', input.createdFrom, input.createdTo)
+  addRangeCondition(conditions, whereParams, 'n.last_checked_at', input.checkedFrom, input.checkedTo)
 
   if (input.keyword.length > 0) {
     const pattern = `%${escapeLikePattern(input.keyword)}%`
     conditions.push(`(
-      n.title LIKE ? ESCAPE '\\\\'
-      OR n.url LIKE ? ESCAPE '\\\\'
-      OR n.remark LIKE ? ESCAPE '\\\\'
-      OR n.description LIKE ? ESCAPE '\\\\'
+      n.title LIKE ? ESCAPE '!'
+      OR n.url LIKE ? ESCAPE '!'
+      OR n.remark LIKE ? ESCAPE '!'
+      OR n.description LIKE ? ESCAPE '!'
       OR EXISTS (
         SELECT 1 FROM node_tag AS keyword_node_tag
         INNER JOIN tag AS keyword_tag ON keyword_tag.id = keyword_node_tag.tag_id
-        WHERE keyword_node_tag.node_id = n.id AND keyword_tag.name LIKE ? ESCAPE '\\\\'
+        WHERE keyword_node_tag.node_id = n.id AND keyword_tag.name LIKE ? ESCAPE '!'
       )
       OR EXISTS (
         SELECT 1 FROM keyword_ancestors AS path_ancestor
-        WHERE path_ancestor.node_id = n.id AND path_ancestor.title LIKE ? ESCAPE '\\\\'
+        WHERE path_ancestor.node_id = n.id AND path_ancestor.cycle_detected = 0
+          AND path_ancestor.title LIKE ? ESCAPE '!'
       )
     )`)
-    params.push(pattern, pattern, pattern, pattern, pattern, pattern)
+    whereParams.push(pattern, pattern, pattern, pattern, pattern, pattern)
   }
 
   return {
     cteSql: ctes.length > 0 ? `WITH RECURSIVE ${ctes.join(',')}` : '',
     fromSql,
     whereSql: conditions.join(' AND '),
-    params,
-    hasTreePath
+    params: [...cteParams, ...whereParams],
+    hasTreePath,
+    cycleSql: buildCycleSql(cycleSources)
   }
+}
+
+/** MySQL 的 GREATEST 至少需要两个参数，单一递归来源直接使用其标量子查询。 */
+function buildCycleSql(cycleSources: string[]): string {
+  if (cycleSources.length === 0) return '0'
+  if (cycleSources.length === 1) return cycleSources[0] ?? '0'
+  return `GREATEST(${cycleSources.join(', ')})`
+}
+
+/** 健康筛选只组合固定状态谓词，书签类型限定由统一 requiresBookmark 条件负责。 */
+function buildHealthCondition(health: AdminNodeQuery['health']): string | undefined {
+  if (health.length === 0) return undefined
+  return `(${health.map((value) => `(${HEALTH_SQL[value]})`).join(' OR ')})`
 }
 
 /** 为可选闭区间追加参数化边界，日期交给 UTC mysql2 连接序列化。 */
@@ -332,9 +397,14 @@ function addRangeCondition(
   }
 }
 
-/** LIKE 模式依次转义反斜杠、百分号和下划线，ESCAPE 子句明确反斜杠含义。 */
+/** LIKE 使用感叹号转义自身、百分号和下划线，不受 NO_BACKSLASH_ESCAPES 会话模式影响。 */
 function escapeLikePattern(value: string): string {
-  return value.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')
+  return value.replaceAll('!', '!!').replaceAll('%', '!%').replaceAll('_', '!_')
+}
+
+/** 所有目录递归检测到父子环时使用统一、可审计的数据完整性错误。 */
+function throwFolderCycleError(): never {
+  throw new AppError(500, 50001, '目录数据存在循环，无法生成完整路径')
 }
 
 /** 根据固定字段与方向映射生成稳定排序；检测时间为空的记录始终置于末尾。 */
