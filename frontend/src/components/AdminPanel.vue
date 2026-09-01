@@ -20,7 +20,7 @@ import {
   X
 } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { apiRequest } from '../api/client'
 import BookmarkIcon from './BookmarkIcon.vue'
 import AdminNodeFilters from './AdminNodeFilters.vue'
@@ -200,7 +200,15 @@ function applyKeywordNow(): void {
 watch(() => draftQuery.keyword, () => {
   if (activeTab.value !== 'nodes') return
   if (keywordTimer) clearTimeout(keywordTimer)
-  keywordTimer = setTimeout(() => { keywordTimer = null; void nodeQuery.applyDraft() }, 300)
+  keywordTimer = setTimeout(() => {
+    keywordTimer = null
+    if (activeTab.value === 'nodes') void nodeQuery.applyDraft()
+  }, 300)
+})
+
+/** 卸载后台面板时取消待处理防抖，避免关闭页面后仍发起查询请求。 */
+onBeforeUnmount(() => {
+  if (keywordTimer) { clearTimeout(keywordTimer); keywordTimer = null }
 })
 
 /** 读取当前管理员的筛选预设；损坏设置由服务端统一回退为空数组。 */
@@ -318,7 +326,7 @@ onMounted(() => { void loadSummary(); void loadPresets() })
           <el-table v-loading="nodeLoading" :data="nodeRows" height="100%" row-key="node.id">
             <el-table-column label="图标" width="64"><template #default="scope"><span class="admin-node-icon"><BookmarkIcon :node="scope.row.node" :size="20" /></span></template></el-table-column>
             <el-table-column label="名称与备注" min-width="250"><template #default="scope"><div class="admin-node-copy"><strong>{{ scope.row.node.title }}</strong><span>{{ scope.row.node.remark || scope.row.node.description || scope.row.node.url || '目录' }}</span></div></template></el-table-column>
-            <el-table-column label="路径" min-width="220"><template #default="scope"><el-tooltip content="定位目录" placement="top"><button class="admin-node-path" :data-testid="`locate-node-${scope.row.node.id}`" type="button" :aria-label="`定位目录：${scope.row.path}`" @click="emit('locate-folder', locateFolderId(scope.row.node))"><LocateFixed :size="14" />{{ scope.row.path }}</button></el-tooltip></template></el-table-column>
+            <el-table-column label="路径" min-width="220"><template #default="scope"><el-tooltip content="定位目录" placement="top"><button class="admin-node-path" :data-testid="`locate-node-${scope.row.node.id}`" type="button" :aria-label="`定位目录：${scope.row.path}`" @click="emit('locate-folder', locateFolderId(scope.row.node))"><LocateFixed :size="14" /><span>{{ scope.row.path }}</span></button></el-tooltip></template></el-table-column>
             <el-table-column label="类型" width="84"><template #default="scope">{{ scope.row.node.nodeType === 'folder' ? '目录' : '书签' }}</template></el-table-column>
             <el-table-column label="可见性" width="90"><template #default="scope"><el-tag size="small" effect="plain">{{ scope.row.node.visibility === 'private' ? '私有' : '公开' }}</el-tag></template></el-table-column>
             <el-table-column label="状态" width="112"><template #default="scope">{{ scope.row.node.lastCheckStatus || '未检测' }}</template></el-table-column>

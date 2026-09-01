@@ -84,4 +84,17 @@ describe('后台节点查询集成', () => {
     await wrapper.get('[data-testid="node-query-retry"]').trigger('click')
     await vi.waitFor(() => expect(apiRequest.mock.calls.filter(([path]) => path === '/api/v1/admin/nodes/query').length).toBe(before + 2))
   })
+
+  it('卸载后清理关键词防抖，不再发起查询', async () => {
+    const wrapper = mountPanel()
+    await wrapper.get('.admin-nav button:nth-child(2)').trigger('click')
+    await vi.waitFor(() => expect(wrapper.text()).toContain('文档'))
+    const before = apiRequest.mock.calls.filter(([path]) => path === '/api/v1/admin/nodes/query').length
+    vi.useFakeTimers()
+    await wrapper.get('.admin-search input').setValue('暂存')
+    wrapper.unmount()
+    await vi.advanceTimersByTimeAsync(300)
+    expect(apiRequest.mock.calls.filter(([path]) => path === '/api/v1/admin/nodes/query').length).toBe(before)
+    vi.useRealTimers()
+  })
 })
