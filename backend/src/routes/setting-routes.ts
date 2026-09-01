@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
+import type { MiddlewareHandler } from 'hono'
 import type { RowDataPacket } from 'mysql2/promise'
 import { z } from 'zod'
 import { adminNodeFilterPresetListInputSchema } from '@cancanworld/contracts'
+import { zValidator } from '@hono/zod-validator'
 import { validationError } from '../errors.js'
 import { requireAdmin } from '../middleware/auth.js'
 import { readAdminNodeFilters, writeAdminNodeFilters } from '../services/admin-node-filter-settings.js'
@@ -22,6 +24,20 @@ const linkCheckScheduleSchema = z.object({
 /** 主题设置只保存受控令牌，不接受脚本、模板或远程组件地址。 */
 export function createSettingRoutes(dependencies: AppDependencies) {
   const routes = new Hono<{ Variables: AppVariables }>()
+  /** 将 JSON 和 Schema 失败转换为统一 422 错误，避免畸形请求落入 500。 */
+  const validatorHook = (result: { success: boolean; error?: unknown }) => {
+    if (!result.success) throw validationError(result.error)
+  }
+  /** 预读请求体以将 Hono 的 JSON 解析异常转换为统一 422 envelope，后续 zValidator 复用缓存内容。 */
+  const malformedJsonGuard: MiddlewareHandler<{ Variables: AppVariables }> = async (context, next) => {
+    try {
+      await context.req.json()
+    } catch {
+      throw validationError(null)
+    }
+    await next()
+  }
+
   routes.get('/theme', async (context) => {
     const [rows] = await dependencies.pool.execute<RowDataPacket[]>("SELECT setting_value FROM app_setting WHERE setting_key = 'theme' LIMIT 1")
     const stored = rows[0] ? JSON.parse(String(rows[0].setting_value)) as unknown : {}
@@ -41,10 +57,8 @@ export function createSettingRoutes(dependencies: AppDependencies) {
     const data = await readAdminNodeFilters(dependencies.pool, context.get('logger'))
     return context.json({ code: 0, message: 'success', data })
   })
-  routes.put('/admin-node-filters', requireAdmin(), async (context) => {
-    const parsed = adminNodeFilterPresetListInputSchema.safeParse(await context.req.json())
-    if (!parsed.success) throw validationError(parsed.error)
-    const data = await writeAdminNodeFilters(dependencies.pool, parsed.data)
+  routes.put('/admin-node-filters', requireAdmin(), malformedJsonGuard, zValidator('json', adminNodeFilterPresetListInputSchema, validatorHook), async (context) => {
+    const data = await writeAdminNodeFilters(dependencies.pool, context.req.valid('json'))
     return context.json({ code: 0, message: 'success', data })
   })
   routes.get('/link-check', requireAdmin(), async (context) => {

@@ -101,6 +101,19 @@ describe('管理员节点筛选预设路由', () => {
     expect(dependencies.execute.mock.calls[0]?.[1]).toEqual([JSON.stringify([]), expect.any(Date)])
   })
 
+  it('PUT 畸形 JSON 返回 42201 且不 upsert', async () => {
+    const dependencies = createDependencies()
+    const request = new Request('http://localhost/api/v1/settings/admin-node-filters', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', 'x-csrf-token': RAW_CSRF_TOKEN, 'x-request-id': REQUEST_ID },
+      body: '{malformed-json'
+    })
+    const response = await createRouteApp(dependencies, adminUser()).request(request)
+    expect(response.status).toBe(422)
+    expect(JSON.parse(await response.text()) as unknown).toMatchObject({ code: 42201, message: '请求参数校验失败' })
+    expect(dependencies.execute).not.toHaveBeenCalled()
+  })
+
   it.each([
     ['二十一项', Array.from({ length: 21 }, (_, index) => ({ id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`, name: '预设', query: { nodeTypes: ['bookmark'] } }))],
     ['非法名称', [{ id: '00000000-0000-4000-8000-000000000001', name: '', query: { nodeTypes: ['bookmark'] } }]],
