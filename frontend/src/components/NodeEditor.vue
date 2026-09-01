@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import type { CreateNodeInput, NavigationNode } from '@cancanworld/contracts'
-import { computed, reactive, watch } from 'vue'
+import type { CreateNodeInput, NavigationNode, PageMetadataResult } from '@cancanworld/contracts'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Download } from 'lucide-vue-next'
+import { computed, reactive, ref, watch } from 'vue'
+import { apiRequest } from '../api/client'
 import { buildFolderOptions, type NodeDraftErrors, validateNodeDraft } from './node-editor-model'
 
 const props = withDefaults(defineProps<{
@@ -36,9 +39,51 @@ const form = reactive<CreateNodeInput>({
   tags: []
 })
 const fieldErrors = reactive<NodeDraftErrors>({})
+const metadataLoading = ref(false)
 
 const title = computed(() => props.node ? '编辑节点' : '新建节点')
 const folderOptions = computed(() => buildFolderOptions(props.nodes))
+/** 抓取需要有地址，且不与保存并发，避免请求完成后写入已提交的草稿。 */
+const canFetchMetadata = computed(() => Boolean(form.url?.trim()) && !props.saving && !metadataLoading.value)
+
+/**
+ * 抓取目标页面的名称与注释并写入草稿。
+ * 只填空字段；名称和注释都已有内容时先确认，避免静默覆盖用户输入。
+ */
+async function fetchMetadata(): Promise<void> {
+  const url = form.url?.trim()
+  if (!url || props.saving || metadataLoading.value) return
+  metadataLoading.value = true
+  try {
+    const result = await apiRequest<PageMetadataResult>('/api/v1/admin/page-metadata', {
+      method: 'POST',
+      body: JSON.stringify({ url })
+    })
+    if (result.title === null && result.description === null) {
+      ElMessage.warning('目标页面没有提供名称和描述')
+      return
+    }
+    // 两者都已填写才询问；只有一处为空时仍可无损补全，不必打断操作。
+    const bothOccupied = form.title.trim().length > 0 && (form.description ?? '').trim().length > 0
+    if (bothOccupied && !(await confirmOverwrite())) return
+    // 抓取结果为 null 表示页面未提供该字段，此时保留草稿原值而不是清空。
+    if (result.title !== null) form.title = result.title
+    if (result.description !== null) form.description = result.description
+    ElMessage.success('已获取网站信息')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '获取网站信息失败')
+  } finally {
+    metadataLoading.value = false
+  }
+}
+
+/** 覆盖确认失败等同于用户取消，保留草稿原值。 */
+async function confirmOverwrite(): Promise<boolean> {
+  return ElMessageBox.confirm('名称和网站注释已有内容，是否用抓取结果覆盖？', '覆盖确认', {
+    type: 'warning',
+    confirmButtonText: '覆盖'
+  }).then(() => true, () => false)
+}
 
 /** 每次打开对话框时从目标节点重新建立表单，防止上次编辑残留。 */
 watch(() => props.modelValue, (open) => {
@@ -120,10 +165,22 @@ function clearFieldErrors(): void {
         <el-input v-model="form.title" data-testid="node-title" maxlength="512" show-word-limit />
       </el-form-item>
       <el-form-item v-if="form.nodeType === 'bookmark'" label="地址" required :error="fieldErrors.url ?? ''">
-        <el-input v-model="form.url" type="textarea" :rows="3" />
+        <el-input v-model="form.url" data-testid="node-url" type="textarea" :rows="3" />
+        <!-- 抓取按钮紧随地址，点击后由服务端读取目标页面并回填名称与注释。 -->
+        <div class="node-metadata-actions">
+          <el-button
+            data-testid="node-fetch-metadata"
+            :disabled="!canFetchMetadata"
+            :loading="metadataLoading"
+            @click="fetchMetadata"
+          >
+            <Download :size="15" />获取信息
+          </el-button>
+          <span>从目标页面读取名称和描述</span>
+        </div>
       </el-form-item>
       <el-form-item v-if="form.nodeType === 'bookmark'" label="网站注释">
-        <el-input v-model="form.description" type="textarea" :rows="2" maxlength="10000" />
+        <el-input v-model="form.description" data-testid="node-description" type="textarea" :rows="2" maxlength="10000" />
       </el-form-item>
       <el-form-item v-if="form.nodeType === 'bookmark'" label="个人备注">
         <el-input v-model="form.remark" type="textarea" :rows="2" maxlength="10000" />

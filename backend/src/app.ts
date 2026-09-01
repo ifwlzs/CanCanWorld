@@ -13,6 +13,7 @@ import { createBackupRoutes } from './routes/backup-routes.js'
 import { createSettingRoutes } from './routes/setting-routes.js'
 import { createFaviconRoutes } from './routes/favicon-routes.js'
 import { createAdminRoutes } from './routes/admin-routes.js'
+import { createAdminMetadataRoutes } from './routes/admin-metadata-routes.js'
 import { createAdminNodeRoutes } from './routes/admin-node-routes.js'
 import type { AppDependencies, AppVariables } from './types.js'
 
@@ -48,6 +49,7 @@ export function createApp(dependencies: AppDependencies) {
   app.route('/api/v1/settings', createSettingRoutes(dependencies))
   app.route('/api/v1', createFaviconRoutes(dependencies))
   app.route('/api/v1/admin', createAdminRoutes(dependencies))
+  app.route('/api/v1/admin', createAdminMetadataRoutes(dependencies))
   app.route('/api/v1/admin/nodes', createAdminNodeRoutes(dependencies))
 
   app.notFound((context) => context.json({ code: 40400, message: '接口不存在', data: null, requestId: context.get('requestId') }, 404))

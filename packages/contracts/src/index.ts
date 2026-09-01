@@ -272,6 +272,28 @@ export interface ImportPreview {
   nodes: ImportPreviewNode[]
 }
 
+/**
+ * 元数据抓取会让服务端对用户提供的地址发起请求，因此在契约层就限定协议和长度。
+ * 运行时仍由后端地址策略校验解析结果，本 schema 只负责挡掉明显不合法的入口。
+ */
+export const pageMetadataInputSchema = z.object({
+  url: z.string().trim().min(1).max(4096).refine((value) => {
+    try {
+      return ['http:', 'https:'].includes(new URL(value).protocol)
+    } catch {
+      return false
+    }
+  }, { message: '只支持 HTTP 和 HTTPS 地址' })
+})
+export type PageMetadataInput = z.infer<typeof pageMetadataInputSchema>
+
+/** 抓取结果字段可空，表示目标页面没有提供对应元数据；finalUrl 反映重定向后的地址。 */
+export interface PageMetadataResult {
+  title: string | null
+  description: string | null
+  finalUrl: string
+}
+
 /** 只有分组标记生成的目录允许在确认前重命名或转换，普通导入节点保持原样。 */
 export const importGroupOverrideSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('folder'), title: z.string().trim().min(1).max(512) }),

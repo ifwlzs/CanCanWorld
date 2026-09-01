@@ -30,6 +30,8 @@ const envSchema = z.object({
   LINK_CHECK_ALLOWED_PORTS: z.string().default('80,443'),
   LINK_CHECK_ALLOWED_CIDRS: z.string().default(''),
   LINK_CHECK_HISTORY_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
+  // 元数据只存在于 head，512 KiB 足以覆盖绝大多数页面；超出即截断，不读完整页。
+  PAGE_METADATA_MAX_RESPONSE_BYTES: z.coerce.number().int().min(1024).default(512 * 1024),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development')
 })

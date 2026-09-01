@@ -43,6 +43,7 @@ function createDependencies(): AppDependencies {
       LINK_CHECK_ALLOWED_PORTS: '80,443',
       LINK_CHECK_ALLOWED_CIDRS: '',
       LINK_CHECK_HISTORY_RETENTION_DAYS: 30,
+      PAGE_METADATA_MAX_RESPONSE_BYTES: 524288,
       LOG_LEVEL: 'fatal',
       NODE_ENV: 'test'
     },
