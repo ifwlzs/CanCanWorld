@@ -248,6 +248,31 @@ button { letter-spacing: 0; }
 .admin-task-progress span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .appearance-form { max-width: 760px; display: grid; grid-template-columns: minmax(220px, 1fr) auto; align-items: center; gap: 28px 40px; }
 
+/* 高级筛选抽屉采用固定页脚和独立滚动区，长条件不会挤压操作按钮。 */
+.admin-filter-drawer { width: min(520px, 100vw) !important; max-width: 100vw; }
+.admin-filter-drawer .el-drawer__body { min-height: 0; padding: 0; overflow: hidden; }
+.admin-filter-form { height: 100%; min-height: 0; display: flex; flex-direction: column; padding: 18px 20px 24px; overflow: auto; }
+.admin-filter-form .el-form-item { margin-bottom: 14px; }
+.admin-filter-inline-label { margin-left: 8px; color: var(--text); font-size: 13px; }
+.admin-filter-sort-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(110px, .7fr); gap: 10px; }
+.admin-filter-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); background: var(--surface); }
+.admin-filter-presets { margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+.admin-filter-presets h3 { margin: 0 0 10px; font-size: 14px; }
+.admin-filter-preset-save { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.admin-filter-duplicate { margin: 5px 0 0; color: #9a4d1f; font-size: 12px; }
+.admin-filter-preset-list { list-style: none; margin: 12px 0 0; padding: 0; }
+.admin-filter-preset-row { min-width: 0; min-height: 38px; display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.admin-filter-preset-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-filter-preset-actions { flex: 0 0 auto; display: inline-flex; gap: 2px; }
+.admin-filter-preset-actions .el-button { width: 30px; min-height: 30px; padding: 0; }
+
+@media (max-width: 520px) {
+  .admin-filter-drawer { width: 100vw !important; }
+  .admin-filter-form { padding-inline: 14px; }
+  .admin-filter-footer { padding-inline: 14px; }
+  .admin-filter-sort-row { grid-template-columns: minmax(0, 1fr); }
+}
+
 @media (max-width: 760px) {
   .app-shell { display: block; height: 100dvh; padding-top: 58px; overflow: hidden; }
   .topbar { position: fixed; width: 100%; height: 58px; padding: 0 10px; gap: 8px; }
