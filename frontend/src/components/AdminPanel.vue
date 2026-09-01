@@ -10,6 +10,7 @@ import {
   Import,
   LayoutDashboard,
   Link2,
+  LocateFixed,
   Plus,
   RefreshCw,
   Search,
@@ -98,6 +99,8 @@ const draftQuery = nodeQuery.draft
 const appliedQuery = computed(() => nodeQuery.applied.value)
 const nodeLoading = computed(() => nodeQuery.loading.value)
 const nodeError = computed(() => nodeQuery.errorMessage.value)
+let keywordTimer: ReturnType<typeof setTimeout> | null = null
+let refreshQueued = false
 const nodeType = computed({
   get: () => nodeQuery.draft.nodeTypes.length === 1 ? nodeQuery.draft.nodeTypes[0] : 'all',
   set: (value: 'all' | 'folder' | 'bookmark') => {
@@ -132,8 +135,18 @@ watch(() => [props.checkJob?.status, props.faviconJob?.status], (statuses, previ
   if (finished) void loadSummary()
 })
 watch(() => props.refreshToken, () => {
-  if (activeTab.value === 'nodes') void nodeQuery.refresh()
+  queueNodeRefresh()
 })
+watch(() => props.nodes, () => {
+  queueNodeRefresh()
+})
+
+/** 合并同一轮节点写入触发的多个刷新通知，避免树引用和版本号同时变化导致重复请求。 */
+function queueNodeRefresh(): void {
+  if (activeTab.value !== 'nodes' || refreshQueued) return
+  refreshQueued = true
+  queueMicrotask(() => { refreshQueued = false; void nodeQuery.refresh() })
+}
 
 /** 后台概览聚合数据独立刷新，节点表查询由服务端分页接口负责。 */
 async function loadSummary(): Promise<void> {
@@ -171,6 +184,24 @@ function openNodesTab(): void {
   activeTab.value = 'nodes'
   void nodeQuery.refresh()
 }
+
+/** 顶部刷新按钮按当前页面刷新对应数据，避免概览请求覆盖节点查询状态。 */
+function refreshCurrentView(): void {
+  if (activeTab.value === 'nodes') void nodeQuery.refresh()
+  else void loadSummary()
+}
+
+/** 关键词输入使用短防抖减少连续请求，按 Enter 可立即提交并清理待执行计时器。 */
+function applyKeywordNow(): void {
+  if (keywordTimer) { clearTimeout(keywordTimer); keywordTimer = null }
+  void nodeQuery.applyDraft()
+}
+
+watch(() => draftQuery.keyword, () => {
+  if (activeTab.value !== 'nodes') return
+  if (keywordTimer) clearTimeout(keywordTimer)
+  keywordTimer = setTimeout(() => { keywordTimer = null; void nodeQuery.applyDraft() }, 300)
+})
 
 /** 读取当前管理员的筛选预设；损坏设置由服务端统一回退为空数组。 */
 async function loadPresets(): Promise<void> {
@@ -250,7 +281,7 @@ onMounted(() => { void loadSummary(); void loadPresets() })
     <main class="admin-main">
       <header class="admin-header">
         <div><p>站点管理</p><h1>{{ activeTab === 'overview' ? '运行概览' : activeTab === 'nodes' ? '书签与目录' : activeTab === 'tasks' ? '后台任务' : '外观设置' }}</h1></div>
-        <el-tooltip content="刷新数据" placement="bottom"><button class="icon-button bordered" type="button" aria-label="刷新后台数据" @click="loadSummary"><RefreshCw :size="17" /></button></el-tooltip>
+        <el-tooltip content="刷新数据" placement="bottom"><button class="icon-button bordered" type="button" aria-label="刷新后台数据" @click="refreshCurrentView"><RefreshCw :size="17" /></button></el-tooltip>
       </header>
 
       <section v-if="activeTab === 'overview'" v-loading="loading" class="admin-content">
@@ -277,17 +308,17 @@ onMounted(() => { void loadSummary(); void loadPresets() })
 
       <section v-else-if="activeTab === 'nodes'" class="admin-content">
         <div class="admin-toolbar">
-          <label class="admin-search"><Search :size="16" /><input v-model="draftQuery.keyword" type="search" placeholder="搜索名称、地址、备注、注释、标签或路径" @keyup.enter="nodeQuery.applyDraft" /></label>
+          <label class="admin-search"><Search :size="16" /><input v-model="draftQuery.keyword" type="search" placeholder="搜索名称、地址、备注、注释、标签或路径" @keyup.enter="applyKeywordNow" /></label>
           <el-segmented v-model="nodeType" :options="[{ label: '全部', value: 'all' }, { label: '书签', value: 'bookmark' }, { label: '目录', value: 'folder' }]" />
           <button class="command-button" type="button" @click="filterOpen = true"><SlidersHorizontal :size="16" />高级筛选<span v-if="countAdvancedFilters(appliedQuery)" class="filter-count">{{ countAdvancedFilters(appliedQuery) }}</span></button>
           <button class="command-button primary" type="button" @click="emit('create', 'bookmark')"><Plus :size="16" />新建书签</button>
         </div>
-        <p v-if="nodeError" class="admin-query-error" role="alert">{{ nodeError }}</p>
+        <p v-if="nodeError" class="admin-query-error" role="alert">{{ nodeError }} <button class="command-button" type="button" data-testid="node-query-retry" @click="nodeQuery.refresh">重试</button></p>
         <div class="admin-table-wrap">
           <el-table v-loading="nodeLoading" :data="nodeRows" height="100%" row-key="node.id">
             <el-table-column label="图标" width="64"><template #default="scope"><span class="admin-node-icon"><BookmarkIcon :node="scope.row.node" :size="20" /></span></template></el-table-column>
             <el-table-column label="名称与备注" min-width="250"><template #default="scope"><div class="admin-node-copy"><strong>{{ scope.row.node.title }}</strong><span>{{ scope.row.node.remark || scope.row.node.description || scope.row.node.url || '目录' }}</span></div></template></el-table-column>
-            <el-table-column label="路径" min-width="220"><template #default="scope"><button class="admin-node-path" :data-testid="`node-path-folder-${locateFolderId(scope.row.node)}`" type="button" :title="scope.row.path" @click="emit('locate-folder', locateFolderId(scope.row.node))">{{ scope.row.path }}</button></template></el-table-column>
+            <el-table-column label="路径" min-width="220"><template #default="scope"><el-tooltip content="定位目录" placement="top"><button class="admin-node-path" :data-testid="`locate-node-${scope.row.node.id}`" type="button" :aria-label="`定位目录：${scope.row.path}`" @click="emit('locate-folder', locateFolderId(scope.row.node))"><LocateFixed :size="14" />{{ scope.row.path }}</button></el-tooltip></template></el-table-column>
             <el-table-column label="类型" width="84"><template #default="scope">{{ scope.row.node.nodeType === 'folder' ? '目录' : '书签' }}</template></el-table-column>
             <el-table-column label="可见性" width="90"><template #default="scope"><el-tag size="small" effect="plain">{{ scope.row.node.visibility === 'private' ? '私有' : '公开' }}</el-tag></template></el-table-column>
             <el-table-column label="状态" width="112"><template #default="scope">{{ scope.row.node.lastCheckStatus || '未检测' }}</template></el-table-column>

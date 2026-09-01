@@ -265,7 +265,7 @@ button { letter-spacing: 0; }
 .admin-filter-preset-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-filter-preset-actions { flex: 0 0 auto; display: inline-flex; gap: 2px; }
 .admin-filter-preset-actions .el-button { width: 30px; min-height: 30px; padding: 0; }
-.admin-node-path { max-width: 100%; overflow: hidden; padding: 0; border: 0; background: transparent; color: var(--muted); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.admin-node-path { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; overflow: hidden; padding: 0; border: 0; background: transparent; color: var(--muted); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .admin-node-path:hover { color: var(--accent); text-decoration: underline; }
 .filter-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin-left: 4px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 11px; }
 .admin-query-error { margin: 0 0 10px; color: var(--danger); font-size: 13px; }
