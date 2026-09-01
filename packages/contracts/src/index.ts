@@ -294,6 +294,114 @@ export interface PageMetadataResult {
   finalUrl: string
 }
 
+/** 治理视图分页档位与后台节点查询保持一致的受控集合，避免任意 pageSize 拖垮聚合查询。 */
+const governancePageSizeSchema = z.union([z.literal(20), z.literal(50), z.literal(100)]).default(20)
+
+/** 重复分组按 url_hash 聚合，只需分页参数。 */
+export const duplicateGroupQuerySchema = z.object({
+  page: z.number().int().min(1).default(1),
+  pageSize: governancePageSizeSchema
+})
+export type DuplicateGroupQuery = z.infer<typeof duplicateGroupQuerySchema>
+
+/** 重复组成员携带足够信息供用户判断保留哪一条。 */
+export interface DuplicateGroupMember {
+  id: number
+  title: string
+  url: string
+  fullPath: string[]
+  tags: string[]
+  remark: string | null
+  visibility: Visibility
+  clickCount: number
+  lastCheckStatus: string | null
+  lastCheckedAt: string | null
+  createdAt: string
+}
+
+export interface DuplicateGroup {
+  urlHash: string
+  memberCount: number
+  members: DuplicateGroupMember[]
+}
+
+export interface DuplicateGroupResult {
+  items: DuplicateGroup[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+/**
+ * 合并要求显式给出保留项和待删除集合，服务端不推断保留哪一条。
+ * 保留 ID 出现在待删除集合中会导致整组丢失，因此在契约层直接拒绝。
+ */
+export const duplicateMergeSchema = z.object({
+  keepId: z.number().int().positive(),
+  removeIds: z.array(z.number().int().positive()).min(1).max(200)
+}).superRefine((value, context) => {
+  if (value.removeIds.includes(value.keepId)) {
+    context.addIssue({ code: 'custom', path: ['removeIds'], message: '保留项不能同时出现在待删除集合中' })
+  }
+  if (new Set(value.removeIds).size !== value.removeIds.length) {
+    context.addIssue({ code: 'custom', path: ['removeIds'], message: '待删除节点不能重复' })
+  }
+})
+export type DuplicateMergeInput = z.infer<typeof duplicateMergeSchema>
+
+export interface DuplicateMergeResult {
+  removed: number
+}
+
+/**
+ * 失效判定阈值可调但受限：连续失败次数与检测新鲜度都要落在合理区间。
+ * 单次失败以网络抖动为主，因此默认要求连续 3 次，且最近检测需在 30 天内。
+ */
+export const brokenBookmarkQuerySchema = z.object({
+  page: z.number().int().min(1).default(1),
+  pageSize: governancePageSizeSchema,
+  minConsecutiveFailures: z.number().int().min(1).max(50).default(3),
+  freshnessDays: z.number().int().min(1).max(3650).default(30)
+})
+export type BrokenBookmarkQuery = z.infer<typeof brokenBookmarkQuerySchema>
+
+/** 判定原因让结论可解释，前端据此说明为何列为失效。 */
+export type BrokenReason = 'deterministic' | 'consecutive_failures'
+
+export interface BrokenBookmark {
+  id: number
+  title: string
+  url: string
+  fullPath: string[]
+  reason: BrokenReason
+  lastCheckStatus: string
+  lastHttpStatus: number | null
+  lastCheckedAt: string
+  consecutiveFailures: number
+}
+
+export interface BrokenBookmarkResult {
+  items: BrokenBookmark[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+/** 批量清理沿用批量标签的 200 条显式 ID 上限，避免长事务。 */
+export const brokenCleanupSchema = z.object({
+  nodeIds: z.array(z.number().int().positive()).min(1).max(200)
+}).superRefine((value, context) => {
+  if (new Set(value.nodeIds).size !== value.nodeIds.length) {
+    context.addIssue({ code: 'custom', path: ['nodeIds'], message: '节点不能重复' })
+  }
+})
+export type BrokenCleanupInput = z.infer<typeof brokenCleanupSchema>
+
+export interface BrokenCleanupResult {
+  removed: number
+  skipped: number
+}
+
 /** 只有分组标记生成的目录允许在确认前重命名或转换，普通导入节点保持原样。 */
 export const importGroupOverrideSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('folder'), title: z.string().trim().min(1).max(512) }),
