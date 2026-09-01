@@ -95,7 +95,7 @@ const DatePickerStub = defineComponent({
     return () => h('input', {
       ...attrs,
       value: props.modelValue?.map((value) => String(value)).join(',') ?? '',
-      onChange: (event: Event) => emit('update:modelValue', [(event.target as HTMLInputElement).value, '2026-09-02T00:00:00.000Z'])
+      onChange: () => emit('update:modelValue', [new Date('2026-09-01T00:00:00+08:00'), new Date('2026-09-02T00:00:00+08:00')])
     })
   }
 })
@@ -167,12 +167,13 @@ describe('后台高级筛选抽屉', () => {
     await wrapper.get('[data-testid="filter-visibility"]').get('button:nth-child(3)').trigger('click')
     await wrapper.get('[data-testid="filter-enabled"]').get('button:nth-child(2)').trigger('click')
     await wrapper.get('[data-testid="filter-health"]').setValue('responded')
-    await wrapper.get('[data-testid="filter-created-range"]').setValue('2026-09-01T00:00:00.000Z')
-    await wrapper.get('[data-testid="filter-checked-range"]').setValue('2026-09-03T00:00:00.000Z')
+    await wrapper.get('[data-testid="filter-created-range"]').setValue('2026-09-01T00:00:00')
+    await wrapper.get('[data-testid="filter-checked-range"]').setValue('2026-09-03T00:00:00')
     await wrapper.get('[data-testid="filter-sort-by"]').setValue('title')
     await wrapper.get('[data-testid="filter-sort-direction"]').setValue('desc')
     await wrapper.get('[data-testid="filter-apply"]').trigger('click')
     expect(wrapper.emitted('apply')?.[0]?.[0]).toEqual(expect.objectContaining({ folderId: 8, includeDescendants: false, tags: ['工作'], tagMode: 'all', visibility: 'private', enabled: true, health: ['responded'], sortBy: 'title', sortDirection: 'desc' }))
+    expect((wrapper.emitted('apply')?.[0]?.[0] as AdminNodeQuery).createdFrom).toBe('2026-08-31T16:00:00.000Z')
   })
 
   it('另存预设使用 UUID 且查询剥离 page', async () => {
@@ -205,6 +206,12 @@ describe('后台高级筛选抽屉', () => {
     expect(wrapper.get('[data-testid="preset-save"]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-testid="preset-apply-p2"]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-testid="preset-name-label-p2"]').attributes('title')).toBe(name)
+  })
+
+  it('标签按大小写无关去重且保留首次展示名', () => {
+    const wrapper = mountFilters({ tags: ['Work', 'work', '学习'] })
+    expect(wrapper.findAll('option').map((item) => item.text())).toContain('Work')
+    expect(wrapper.findAll('option').map((item) => item.text())).not.toContain('work')
   })
 
   it('无节点时安全渲染目录选择器', () => {

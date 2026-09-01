@@ -255,7 +255,7 @@ button { letter-spacing: 0; }
 .admin-filter-form .el-form-item { margin-bottom: 14px; }
 .admin-filter-inline-label { margin-left: 8px; color: var(--text); font-size: 13px; }
 .admin-filter-sort-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(110px, .7fr); gap: 10px; }
-.admin-filter-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); background: var(--surface); }
+.admin-filter-footer { min-height: 56px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); background: var(--surface); }
 .admin-filter-presets { margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
 .admin-filter-presets h3 { margin: 0 0 10px; font-size: 14px; }
 .admin-filter-preset-save { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }

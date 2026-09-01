@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AdminNodeFilterPreset, AdminNodeFilterPresetInput, AdminNodeQuery, NavigationNode } from '@cancanworld/contracts'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, h, reactive, ref, watch } from 'vue'
 import { Check, Pencil, RotateCcw, Save, SlidersHorizontal, Trash2, X } from 'lucide-vue-next'
 import { buildFolderOptions } from './node-editor-model'
 import { cloneAdminNodeQuery } from './admin-node-model'
@@ -25,14 +25,22 @@ const emit = defineEmits<{
 }>()
 
 const draft = reactive<AdminNodeQuery>(cloneAdminNodeQuery(props.query))
-const createdRange = ref<string[]>([])
-const checkedRange = ref<string[]>([])
+const createdRange = ref<Date[]>([])
+const checkedRange = ref<Date[]>([])
 const presetName = ref('')
 const renamingId = ref<string | null>(null)
 const renameName = ref('')
 
 const folderOptions = computed(() => buildFolderOptions(props.nodes))
-const uniqueTags = computed(() => [...new Set(props.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0))])
+const uniqueTags = computed(() => {
+  const seen = new Set<string>()
+  return props.tags.map((tag) => tag.trim()).filter((tag) => {
+    const key = tag.toLocaleLowerCase('en-US')
+    if (!tag || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+})
 const duplicatePresetName = computed(() => {
   const value = presetName.value.trim()
   return value.length > 0 && props.presets.some((preset) => preset.name.trim() === value)
@@ -55,23 +63,28 @@ watch(() => props.query, (value) => {
 }, { deep: true })
 
 /** 将可选的两个边界转换成日期控件需要的稳定数组形状。 */
-function toRange(from: string | undefined, to: string | undefined): string[] {
-  return from || to ? [from ?? '', to ?? ''] : []
+function toRange(from: string | undefined, to: string | undefined): Date[] {
+  return from || to ? [from, to].filter((value): value is string => Boolean(value)).map((value) => new Date(value)) : []
 }
 
 /** 日期控件可能返回 Date 或 ISO 字符串；统一为可被共享 Schema 校验的 ISO 值。 */
 function setRange(target: 'created' | 'checked', value: unknown): void {
   const values = Array.isArray(value) ? value : []
-  const normalized = values.map((item) => item instanceof Date ? item.toISOString() : String(item)).filter((item) => item.length > 0)
+  const dates = values.map((item) => item instanceof Date ? item : new Date(String(item))).filter((item) => !Number.isNaN(item.getTime()))
   if (target === 'created') {
-    createdRange.value = normalized
-    draft.createdFrom = normalized[0] || undefined
-    draft.createdTo = normalized[1] || undefined
+    createdRange.value = dates
+    draft.createdFrom = dates[0]?.toISOString()
+    draft.createdTo = dates[1]?.toISOString()
   } else {
-    checkedRange.value = normalized
-    draft.checkedFrom = normalized[0] || undefined
-    draft.checkedTo = normalized[1] || undefined
+    checkedRange.value = dates
+    draft.checkedFrom = dates[0]?.toISOString()
+    draft.checkedTo = dates[1]?.toISOString()
   }
+}
+
+/** 为深层目录标签提供原生 tooltip，长名称仍由弹层样式省略显示。 */
+function renderFolderLabel(data: { label: string }): ReturnType<typeof h> {
+  return h('span', { title: data.label }, data.label)
 }
 
 /** 兼容 Element 事件和语义测试桩可能发出的字符串布尔值。 */
@@ -156,6 +169,7 @@ function deletePreset(id: string): void {
             :props="{ value: 'id', label: 'label', children: 'children' }"
             check-strictly
             filterable
+            :render-content="renderFolderLabel"
             style="width: 100%"
             @update:model-value="(value: unknown) => { draft.folderId = Number(value) || 1 }"
           />
@@ -184,10 +198,10 @@ function deletePreset(id: string): void {
           </el-select>
         </el-form-item>
         <el-form-item label="创建时间">
-          <el-date-picker :model-value="createdRange" data-testid="filter-created-range" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss.SSS[Z]" style="width: 100%" @update:model-value="setRange('created', $event)" />
+          <el-date-picker :model-value="createdRange" data-testid="filter-created-range" type="datetimerange" style="width: 100%" @update:model-value="setRange('created', $event)" />
         </el-form-item>
         <el-form-item label="检测时间">
-          <el-date-picker :model-value="checkedRange" data-testid="filter-checked-range" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss.SSS[Z]" style="width: 100%" @update:model-value="setRange('checked', $event)" />
+          <el-date-picker :model-value="checkedRange" data-testid="filter-checked-range" type="datetimerange" style="width: 100%" @update:model-value="setRange('checked', $event)" />
         </el-form-item>
         <div class="admin-filter-sort-row">
           <el-form-item label="排序字段"><el-select :model-value="draft.sortBy" data-testid="filter-sort-by" style="width: 100%" @update:model-value="(value: unknown) => { if (value === 'tree' || value === 'title' || value === 'createdAt' || value === 'clickCount' || value === 'lastCheckedAt') draft.sortBy = value }"><el-option label="目录顺序" value="tree" /><el-option label="名称" value="title" /><el-option label="创建时间" value="createdAt" /><el-option label="点击次数" value="clickCount" /><el-option label="检测时间" value="lastCheckedAt" /></el-select></el-form-item>
@@ -196,7 +210,7 @@ function deletePreset(id: string): void {
       </el-form>
       <section class="admin-filter-presets" aria-label="筛选预设">
         <h3>筛选预设</h3>
-        <div class="admin-filter-preset-save"><el-input v-model="presetName" data-testid="preset-name" maxlength="40" placeholder="预设名称" /><el-button data-testid="preset-save" :disabled="props.savingPresets || !presetName.trim()" :title="duplicatePresetName ? '名称已存在，仍可保存' : '保存预设'" @click="savePreset"><Save :size="15" />另存</el-button></div>
+        <div class="admin-filter-preset-save"><el-input v-model="presetName" data-testid="preset-name" maxlength="40" placeholder="预设名称" /><el-button data-testid="preset-save" style="width: 88px" :disabled="props.savingPresets || !presetName.trim()" :loading="props.savingPresets" :title="duplicatePresetName ? '名称已存在，仍可保存' : '保存预设'" @click="savePreset"><Save :size="15" />另存</el-button></div>
         <p v-if="duplicatePresetName" class="admin-filter-duplicate">名称已存在，仍可保存</p>
         <ul v-if="props.presets.length" class="admin-filter-preset-list">
           <li v-for="preset in props.presets" :key="preset.id" :data-testid="`preset-${preset.id}`" class="admin-filter-preset-row">
