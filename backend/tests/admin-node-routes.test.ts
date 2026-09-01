@@ -7,7 +7,7 @@ import { createLogger } from '../src/config/logger.js'
 import { AppError } from '../src/errors.js'
 import { requestContext } from '../src/middleware/request-context.js'
 import { createAdminNodeRoutes } from '../src/routes/admin-node-routes.js'
-import type { AdminNodeQueryReader } from '../src/routes/admin-node-routes.js'
+import type { AdminNodeBatchTagWriter, AdminNodeQueryReader } from '../src/routes/admin-node-routes.js'
 import type { AppDependencies, AppVariables, AuthUser } from '../src/types.js'
 import { tokenHash } from '../src/utils/crypto.js'
 
@@ -56,7 +56,7 @@ function adminUser(): AuthUser {
 }
 
 /** 测试应用复刻生产请求上下文与 AppError 映射，同时允许显式注入认证身份。 */
-function createRouteApp(reader: AdminNodeQueryReader, user: AuthUser | null) {
+function createRouteApp(reader: AdminNodeQueryReader, user: AuthUser | null, batchWriter?: AdminNodeBatchTagWriter) {
   const dependencies = createDependencies()
   const app = new Hono<{ Variables: AppVariables }>()
   app.use('*', requestContext(dependencies))
@@ -65,7 +65,7 @@ function createRouteApp(reader: AdminNodeQueryReader, user: AuthUser | null) {
     context.set('user', user)
     await next()
   })
-  app.route('/api/v1/admin/nodes', createAdminNodeRoutes(dependencies, reader))
+  app.route('/api/v1/admin/nodes', createAdminNodeRoutes(dependencies, reader, batchWriter))
   // 测试应用复刻生产 AppError envelope，保留 requestId 便于追踪断言。
   app.onError((error, context) => {
     const requestId = context.get('requestId')
@@ -78,10 +78,10 @@ function createRouteApp(reader: AdminNodeQueryReader, user: AuthUser | null) {
 }
 
 /** 构造 POST 请求并固定请求 ID，便于验证统一错误 envelope 的追踪字段。 */
-function queryRequest(body: unknown, csrfToken?: string): Request {
+function queryRequest(body: unknown, csrfToken?: string, path = '/api/v1/admin/nodes/query'): Request {
   const headers = new Headers({ 'content-type': 'application/json', 'x-request-id': REQUEST_ID })
   if (csrfToken) headers.set('x-csrf-token', csrfToken)
-  return new Request('http://localhost/api/v1/admin/nodes/query', {
+  return new Request(`http://localhost${path}`, {
     method: 'POST',
     headers,
     body: JSON.stringify(body)
@@ -238,5 +238,17 @@ describe('管理员节点查询路由', () => {
       data: null,
       requestId: REQUEST_ID
     })
+  })
+
+  it('管理员批量标签接口校验 CSRF 并转发规范化输入', async () => {
+    const writer: AdminNodeBatchTagWriter = {
+      batchUpdateTags: vi.fn().mockResolvedValue({ updated: 2, skippedFolders: 1, missing: 0 })
+    }
+    const response = await createRouteApp(readerReturning({ items: [], total: 0, page: 1, pageSize: 50 }).reader, adminUser(), writer).request(
+      queryRequest({ nodeIds: [8, 9], mode: 'add', tags: [' 工具 '] }, RAW_CSRF_TOKEN, '/api/v1/admin/nodes/batch-tags')
+    )
+    expect(response.status).toBe(200)
+    expect(JSON.parse(await response.text())).toEqual({ code: 0, message: 'success', data: { updated: 2, skippedFolders: 1, missing: 0 } })
+    expect(writer.batchUpdateTags).toHaveBeenCalledWith({ nodeIds: [8, 9], mode: 'add', tags: ['工具'] })
   })
 })

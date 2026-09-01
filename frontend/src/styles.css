@@ -233,6 +233,16 @@ button { letter-spacing: 0; }
 .admin-node-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .admin-node-copy strong, .admin-node-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-node-copy span { color: var(--muted); font-size: 12px; }
+.admin-batch-toolbar { min-height: 42px; display: flex; align-items: center; gap: 12px; padding: 6px 0; color: var(--muted); }
+.admin-batch-toolbar .command-button { margin-left: 0; }
+.admin-batch-form { display: grid; gap: 18px; }
+.admin-batch-form label { display: grid; gap: 8px; }
+.admin-batch-form label > span { color: var(--text); font-size: 13px; font-weight: 600; }
+.admin-batch-tags { width: 100%; }
+@media (max-width: 640px) {
+  .admin-batch-toolbar { min-height: 46px; justify-content: space-between; }
+  .admin-batch-toolbar .command-button { min-width: 132px; }
+}
 .table-actions { display: flex; gap: 2px; }
 .icon-button.danger:hover { background: #fcebec; color: #b4232c; }
 .task-layout { display: grid; align-content: start; gap: 6px; }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdminNodeFilterPreset, AdminNodeFilterPresetInput, AdminNodeQuery, NavigationNode } from '@cancanworld/contracts'
+import type { AdminNodeBatchTagResult, AdminNodeFilterPreset, AdminNodeFilterPresetInput, AdminNodeQuery, NavigationNode } from '@cancanworld/contracts'
 import {
   Activity,
   ArrowLeft,
@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Link2,
   LocateFixed,
+  Tags,
   Plus,
   RefreshCw,
   Search,
@@ -94,6 +95,11 @@ const loading = ref(false)
 const filterOpen = ref(false)
 const presets = ref<AdminNodeFilterPreset[]>([])
 const savingPresets = ref(false)
+const batchTagOpen = ref(false)
+const batchTagSaving = ref(false)
+const batchTagMode = ref<'add' | 'remove' | 'replace'>('add')
+const batchTagValues = ref<string[]>([])
+const selectedRows = ref<Array<{ node: NavigationNode; path: string }>>([])
 const nodeQuery = useAdminNodeQuery()
 const draftQuery = nodeQuery.draft
 const appliedQuery = computed(() => nodeQuery.applied.value)
@@ -129,6 +135,48 @@ const availableTags = computed(() => {
 })
 const scheduleForm = reactive({ enabled: true, intervalSeconds: 1800 })
 const scheduleSaving = ref(false)
+
+/** 表格选择只保留当前页行，目录可选但提交时会由后端统计并跳过。 */
+function handleNodeSelection(rows: Array<{ node: NavigationNode; path: string }>): void {
+  selectedRows.value = rows
+}
+
+/** 打开批量标签对话框时恢复追加模式，避免上次编辑状态污染本次操作。 */
+function openBatchTags(): void {
+  batchTagMode.value = 'add'
+  batchTagValues.value = []
+  batchTagOpen.value = true
+}
+
+/** 在一个请求中提交书签标签变更，目录和不存在节点由服务端返回汇总。 */
+async function submitBatchTags(): Promise<void> {
+  const bookmarkIds = selectedRows.value.filter(({ node }) => node.nodeType === 'bookmark').map(({ node }) => node.id)
+  const tags = [...new Set(batchTagValues.value.map((tag) => tag.trim()).filter(Boolean))]
+  if (bookmarkIds.length === 0) {
+    ElMessage.warning('没有可修改的书签')
+    return
+  }
+  if (batchTagMode.value !== 'replace' && tags.length === 0) {
+    ElMessage.warning('请至少输入一个标签')
+    return
+  }
+  batchTagSaving.value = true
+  try {
+    const result = await apiRequest<AdminNodeBatchTagResult>('/api/v1/admin/nodes/batch-tags', {
+      method: 'POST',
+      body: JSON.stringify({ nodeIds: bookmarkIds, mode: batchTagMode.value, tags })
+    })
+    selectedRows.value = []
+    batchTagOpen.value = false
+    const skipped = result.skippedFolders + result.missing
+    ElMessage.success(skipped > 0 ? `已更新 ${result.updated} 个书签，跳过 ${skipped} 项` : `已更新 ${result.updated} 个书签`)
+    await nodeQuery.refresh()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '批量修改标签失败')
+  } finally {
+    batchTagSaving.value = false
+  }
+}
 
 watch(() => [props.checkJob?.status, props.faviconJob?.status], (statuses, previous) => {
   const finished = statuses.some((status, index) => status !== previous?.[index] && status && !['pending', 'running'].includes(status))
@@ -323,7 +371,12 @@ onMounted(() => { void loadSummary(); void loadPresets() })
         </div>
         <p v-if="nodeError" class="admin-query-error" role="alert">{{ nodeError }} <button class="command-button" type="button" data-testid="node-query-retry" @click="nodeQuery.refresh">重试</button></p>
         <div class="admin-table-wrap">
-          <el-table v-loading="nodeLoading" :data="nodeRows" height="100%" row-key="node.id">
+          <div v-if="selectedRows.length" class="admin-batch-toolbar">
+            <span>已选 {{ selectedRows.length }} 项</span>
+            <button class="command-button" type="button" @click="openBatchTags"><Tags :size="16" />批量修改标签</button>
+          </div>
+          <el-table v-loading="nodeLoading" :data="nodeRows" height="100%" row-key="node.id" @selection-change="handleNodeSelection">
+            <el-table-column type="selection" width="48" />
             <el-table-column label="图标" width="64"><template #default="scope"><span class="admin-node-icon"><BookmarkIcon :node="scope.row.node" :size="20" /></span></template></el-table-column>
             <el-table-column label="名称与备注" min-width="250"><template #default="scope"><div class="admin-node-copy"><strong>{{ scope.row.node.title }}</strong><span>{{ scope.row.node.remark || scope.row.node.description || scope.row.node.url || '目录' }}</span></div></template></el-table-column>
             <el-table-column label="路径" min-width="220"><template #default="scope"><el-tooltip content="定位目录" placement="top"><button class="admin-node-path" :data-testid="`locate-node-${scope.row.node.id}`" type="button" :aria-label="`定位目录：${scope.row.path}`" @click="emit('locate-folder', locateFolderId(scope.row.node))"><LocateFixed :size="14" /><span>{{ scope.row.path }}</span></button></el-tooltip></template></el-table-column>
@@ -358,6 +411,16 @@ onMounted(() => { void loadSummary(); void loadPresets() })
           @rename-preset="renamePreset"
           @delete-preset="deletePreset"
         />
+        <el-dialog v-model="batchTagOpen" title="批量修改标签" width="min(460px, calc(100vw - 32px))" :close-on-click-modal="!batchTagSaving" :close-on-press-escape="!batchTagSaving" :show-close="!batchTagSaving">
+          <div class="admin-batch-form">
+            <label><span>操作</span><el-segmented v-model="batchTagMode" :options="[{ label: '追加', value: 'add' }, { label: '移除', value: 'remove' }, { label: '覆盖', value: 'replace' }]" /></label>
+            <label><span>标签</span><div class="admin-batch-tags"><el-select v-model="batchTagValues" multiple filterable allow-create default-first-option /></div></label>
+          </div>
+          <template #footer>
+            <el-button :disabled="batchTagSaving" @click="batchTagOpen = false">取消</el-button>
+            <el-button type="primary" :loading="batchTagSaving" :disabled="batchTagSaving" style="width: 96px" @click="submitBatchTags">确认修改</el-button>
+          </template>
+        </el-dialog>
       </section>
 
       <section v-else-if="activeTab === 'tasks'" v-loading="loading" class="admin-content task-layout">

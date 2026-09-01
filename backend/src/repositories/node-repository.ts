@@ -1,4 +1,4 @@
-import type { CreateNodeInput, NavigationNode, UpdateNodeInput } from '@cancanworld/contracts'
+import type { AdminNodeBatchTagInput, AdminNodeBatchTagResult, CreateNodeInput, NavigationNode, UpdateNodeInput } from '@cancanworld/contracts'
 import type { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise'
 import { AppError } from '../errors.js'
 import { getBookmarkType, hashUrl } from '../utils/url.js'
@@ -103,6 +103,41 @@ export class NodeRepository {
       if (result.affectedRows !== 1) throw new AppError(409, 40902, '节点已经被其他操作修改，请刷新后重试')
       if (current.node_type === 'bookmark' && input.tags) await replaceTags(connection, id, input.tags)
       await connection.commit()
+    } catch (error) {
+      await connection.rollback()
+      throw error
+    } finally {
+      connection.release()
+    }
+  }
+
+  /** 在单个事务内批量更新书签标签；目录和不存在节点只计入结果，不会被误写。 */
+  async batchUpdateTags(input: AdminNodeBatchTagInput): Promise<AdminNodeBatchTagResult> {
+    const connection = await this.pool.getConnection()
+    try {
+      await connection.beginTransaction()
+      const placeholders = input.nodeIds.map(() => '?').join(',')
+      const [rows] = await connection.execute<NodeRow[]>(
+        `SELECT id, node_type FROM navigation_node WHERE id IN (${placeholders}) FOR UPDATE`,
+        input.nodeIds
+      )
+      const found = new Set(rows.map((row) => Number(row.id)))
+      const missing = input.nodeIds.filter((id) => !found.has(id)).length
+      const bookmarkIds = rows.filter((row) => row.node_type === 'bookmark').map((row) => Number(row.id))
+      const skippedFolders = rows.length - bookmarkIds.length
+      const existing = await loadTagsForConnection(connection, bookmarkIds)
+      const requested = input.tags.map((tag) => tag.trim()).filter(Boolean)
+      const requestedKeys = new Set(requested.map((tag) => tag.toLowerCase()))
+      for (const id of bookmarkIds) {
+        const current = existing.get(id) ?? []
+        let next: string[]
+        if (input.mode === 'replace') next = requested
+        else if (input.mode === 'add') next = [...current, ...requested]
+        else next = current.filter((tag) => !requestedKeys.has(tag.toLowerCase()))
+        await replaceTags(connection, id, next)
+      }
+      await connection.commit()
+      return { updated: bookmarkIds.length, skippedFolders, missing }
     } catch (error) {
       await connection.rollback()
       throw error
@@ -332,6 +367,22 @@ async function replaceTags(connection: PoolConnection, nodeId: number, values: s
     const [rows] = await connection.execute<RowDataPacket[]>('SELECT id FROM tag WHERE normalized_name = ? LIMIT 1', [normalized])
     await connection.execute('INSERT INTO node_tag (node_id, tag_id) VALUES (?, ?)', [nodeId, rows[0]?.id])
   }
+}
+
+/** 批量事务使用同一连接读取现有标签，避免读到未提交的外部状态。 */
+async function loadTagsForConnection(connection: PoolConnection, ids: number[]): Promise<Map<number, string[]>> {
+  const result = new Map<number, string[]>()
+  if (ids.length === 0) return result
+  const placeholders = ids.map(() => '?').join(',')
+  const [rows] = await connection.query<TagRow[]>(
+    `SELECT nt.node_id, t.name FROM node_tag nt INNER JOIN tag t ON t.id = nt.tag_id WHERE nt.node_id IN (${placeholders}) ORDER BY t.name`,
+    ids
+  )
+  for (const row of rows) {
+    const id = Number(row.node_id)
+    result.set(id, [...(result.get(id) ?? []), row.name])
+  }
+  return result
 }
 
 /** 扁平记录按稳定排序装配为树，缺失可见父节点的匿名子树不会泄露。 */

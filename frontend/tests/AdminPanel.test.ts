@@ -33,7 +33,7 @@ function mountPanel() {
     props: { nodes: [node()], selectedFolderId: 1, layoutStyle: 'style1', theme: 'default', checkJob: null, faviconJob: null },
     global: { stubs: {
       BookmarkIcon: true,
-      ElTable: defineComponent({ props: { data: Array }, setup(props) { return () => h('div', (props.data ?? []).map((item) => { const row = item as { node: NavigationNode; path: string }; return h('div', [h('strong', row.node.title), h('button', { 'data-testid': `locate-node-${row.node.id}`, onClick: () => undefined }, row.path)]) })) } }),
+      ElTable: defineComponent({ props: { data: Array }, emits: ['selection-change'], setup(props, { emit }) { return () => h('div', [h('button', { 'data-testid': 'select-row', onClick: () => emit('selection-change', props.data ?? []) }, '选择'), ...(props.data ?? []).map((item) => { const row = item as { node: NavigationNode; path: string }; return h('div', [h('strong', row.node.title), h('button', { 'data-testid': `locate-node-${row.node.id}`, onClick: () => undefined }, row.path)]) })]) } }),
       ElTableColumn: true,
       ElTag: defineComponent({ setup(_, { slots }) { return () => h('span', slots.default?.()) } }),
       ElPagination: true,
@@ -83,6 +83,14 @@ describe('后台节点查询集成', () => {
     apiRequest.mockResolvedValueOnce({ items: [], total: 0, page: 1, pageSize: 50 })
     await wrapper.get('[data-testid="node-query-retry"]').trigger('click')
     await vi.waitFor(() => expect(apiRequest.mock.calls.filter(([path]) => path === '/api/v1/admin/nodes/query').length).toBe(before + 2))
+  })
+
+  it('选择节点后显示批量标签操作入口', async () => {
+    const wrapper = mountPanel()
+    await wrapper.get('.admin-nav button:nth-child(2)').trigger('click')
+    await vi.waitFor(() => expect(wrapper.find('[data-testid="select-row"]').exists()).toBe(true))
+    await wrapper.get('[data-testid="select-row"]').trigger('click')
+    expect(wrapper.text()).toContain('批量修改标签')
   })
 
   it('卸载后清理关键词防抖，不再发起查询', async () => {

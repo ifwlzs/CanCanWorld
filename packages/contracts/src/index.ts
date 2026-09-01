@@ -181,6 +181,31 @@ export const adminNodeFilterPresetSchema = adminNodeFilterPresetInputSchema.exte
 })
 export type AdminNodeFilterPreset = z.infer<typeof adminNodeFilterPresetSchema>
 
+/** 批量标签操作只允许管理员提交书签 ID 集合和明确的标签变更模式。 */
+export const adminNodeBatchTagSchema = z.object({
+  nodeIds: z.array(z.number().int().positive()).min(1).max(200),
+  mode: z.enum(['add', 'remove', 'replace']),
+  tags: z.array(z.string().trim().min(1).max(64)).max(20)
+}).superRefine((value, context) => {
+  if (new Set(value.nodeIds).size !== value.nodeIds.length) {
+    context.addIssue({ code: 'custom', path: ['nodeIds'], message: '节点不能重复' })
+  }
+  if (new Set(value.tags.map((tag) => tag.toLowerCase())).size !== value.tags.length) {
+    context.addIssue({ code: 'custom', path: ['tags'], message: '标签不能重复' })
+  }
+  if (value.mode !== 'replace' && value.tags.length === 0) {
+    context.addIssue({ code: 'custom', path: ['tags'], message: '追加或移除模式至少需要一个标签' })
+  }
+})
+export type AdminNodeBatchTagInput = z.infer<typeof adminNodeBatchTagSchema>
+
+/** 批量标签响应区分实际更新、目录跳过和不存在节点，便于前端反馈。 */
+export interface AdminNodeBatchTagResult {
+  updated: number
+  skippedFolders: number
+  missing: number
+}
+
 /** 非空目录删除必须显式选择级联或保留内容策略。 */
 export const deleteStrategySchema = z.enum(['cascade', 'move_to_parent'])
 export type DeleteStrategy = z.infer<typeof deleteStrategySchema>
