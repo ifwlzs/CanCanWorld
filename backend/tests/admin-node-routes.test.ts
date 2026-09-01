@@ -13,6 +13,7 @@ import { tokenHash } from '../src/utils/crypto.js'
 
 const REQUEST_ID = 'admin-node-route-test-request'
 const RAW_CSRF_TOKEN = 'admin-node-route-test-csrf'
+const BATCH_PATH = '/api/v1/admin/nodes/batch-tags'
 
 /** 创建无需数据库的应用依赖，确保路由测试只在读取器边界隔离 SQL。 */
 function createDependencies(): AppDependencies {
@@ -121,6 +122,17 @@ function readerReturning(result: AdminNodeQueryResult) {
   return { reader: { query } satisfies AdminNodeQueryReader, query }
 }
 
+/** 批量标签失败路径共用的空分页结果，避免每个用例重复构造读取器夹具。 */
+function emptyResult(): AdminNodeQueryResult {
+  return { items: [], total: 0, page: 1, pageSize: 50 }
+}
+
+/** 创建可观察的批量写入桩；未被调用即证明鉴权或校验已在事务前短路。 */
+function batchWriterStub() {
+  const batchUpdateTags = vi.fn<AdminNodeBatchTagWriter['batchUpdateTags']>().mockResolvedValue({ updated: 0, skippedFolders: 0, missing: 0 })
+  return { writer: { batchUpdateTags } satisfies AdminNodeBatchTagWriter, batchUpdateTags }
+}
+
 describe('管理员节点查询路由', () => {
   // 成功用例锁定 Zod 默认值、排序规范化和结果原样转发。
   it('校验并规范化查询后原样返回读取器的分页结果', async () => {
@@ -208,6 +220,20 @@ describe('管理员节点查询路由', () => {
     expect(query).not.toHaveBeenCalled()
   })
 
+  it('查询接口对畸形 JSON 返回 42201 且不读取节点', async () => {
+    const { reader, query } = readerReturning(emptyResult())
+
+    const response = await createRouteApp(reader, adminUser()).request(new Request('http://localhost/api/v1/admin/nodes/query', {
+      method: 'POST',
+      headers: new Headers({ 'content-type': 'application/json', 'x-request-id': REQUEST_ID, 'x-csrf-token': RAW_CSRF_TOKEN }),
+      body: '{malformed-json'
+    }))
+
+    expect(response.status).toBe(422)
+    expect(JSON.parse(await response.text()) as unknown).toMatchObject({ code: 42201, message: '请求参数校验失败', requestId: REQUEST_ID })
+    expect(query).not.toHaveBeenCalled()
+  })
+
   // 读取器抛出的领域错误应交由全局错误处理器统一序列化。
   it('读取器业务错误由全局映射保留状态、错误码和请求 ID', async () => {
     const query = vi.fn<AdminNodeQueryReader['query']>().mockRejectedValue(
@@ -250,5 +276,114 @@ describe('管理员节点查询路由', () => {
     expect(response.status).toBe(200)
     expect(JSON.parse(await response.text())).toEqual({ code: 0, message: 'success', data: { updated: 2, skippedFolders: 1, missing: 0 } })
     expect(writer.batchUpdateTags).toHaveBeenCalledWith({ nodeIds: [8, 9], mode: 'add', tags: ['工具'] })
+  })
+
+  it('未登录访问批量标签接口返回 40102 且不写入标签', async () => {
+    const writer = batchWriterStub()
+
+    const response = await createRouteApp(readerReturning(emptyResult()).reader, null, writer.writer).request(
+      queryRequest({ nodeIds: [8], mode: 'add', tags: ['工具'] }, RAW_CSRF_TOKEN, BATCH_PATH)
+    )
+
+    expect(response.status).toBe(401)
+    expect(JSON.parse(await response.text()) as unknown).toEqual({
+      code: 40102,
+      message: '需要管理员登录',
+      data: null,
+      requestId: REQUEST_ID
+    })
+    expect(writer.batchUpdateTags).not.toHaveBeenCalled()
+  })
+
+  // 批量写入同样属于修改语义，缺少和错误 CSRF 都必须在写入前短路。
+  it.each([
+    ['缺少', undefined],
+    ['错误', 'wrong-csrf-token']
+  ])('批量标签接口在%s CSRF Token 时返回 40301 且不写入标签', async (_caseName, csrfToken) => {
+    const writer = batchWriterStub()
+
+    const response = await createRouteApp(readerReturning(emptyResult()).reader, adminUser(), writer.writer).request(
+      queryRequest({ nodeIds: [8], mode: 'add', tags: ['工具'] }, csrfToken, BATCH_PATH)
+    )
+
+    expect(response.status).toBe(403)
+    expect(JSON.parse(await response.text()) as unknown).toEqual({
+      code: 40301,
+      message: 'CSRF Token 无效或已过期',
+      data: null,
+      requestId: REQUEST_ID
+    })
+    expect(writer.batchUpdateTags).not.toHaveBeenCalled()
+  })
+
+  // 契约边界失败统一映射为 42201，确保非法批量输入不会进入事务。
+  it.each([
+    ['空节点集合', { nodeIds: [], mode: 'add', tags: ['工具'] }],
+    ['重复节点', { nodeIds: [8, 8], mode: 'add', tags: ['工具'] }],
+    ['未知模式', { nodeIds: [8], mode: 'clear', tags: ['工具'] }],
+    ['追加模式缺少标签', { nodeIds: [8], mode: 'add', tags: [] }],
+    ['超出节点上限', { nodeIds: Array.from({ length: 201 }, (_, index) => index + 1), mode: 'replace', tags: [] }]
+  ])('批量标签接口对%s返回 42201 且不写入标签', async (_caseName, body) => {
+    const writer = batchWriterStub()
+
+    const response = await createRouteApp(readerReturning(emptyResult()).reader, adminUser(), writer.writer).request(
+      queryRequest(body, RAW_CSRF_TOKEN, BATCH_PATH)
+    )
+
+    expect(response.status).toBe(422)
+    expect(JSON.parse(await response.text()) as unknown).toMatchObject({
+      code: 42201,
+      message: '请求参数校验失败',
+      requestId: REQUEST_ID
+    })
+    expect(writer.batchUpdateTags).not.toHaveBeenCalled()
+  })
+
+  it('批量标签接口对畸形 JSON 返回 42201 且不写入标签', async () => {
+    const writer = batchWriterStub()
+    const app = createRouteApp(readerReturning(emptyResult()).reader, adminUser(), writer.writer)
+
+    const response = await app.request(new Request(`http://localhost${BATCH_PATH}`, {
+      method: 'POST',
+      headers: new Headers({ 'content-type': 'application/json', 'x-request-id': REQUEST_ID, 'x-csrf-token': RAW_CSRF_TOKEN }),
+      body: '{"nodeIds":[8],'
+    }))
+
+    expect(response.status).toBe(422)
+    expect(JSON.parse(await response.text()) as unknown).toMatchObject({ code: 42201, requestId: REQUEST_ID })
+    expect(writer.batchUpdateTags).not.toHaveBeenCalled()
+  })
+
+  it('批量标签写入的业务错误由全局映射保留状态、错误码和请求 ID', async () => {
+    const batchUpdateTags = vi.fn<AdminNodeBatchTagWriter['batchUpdateTags']>().mockRejectedValue(
+      new AppError(409, 40902, '节点已经被其他操作修改，请刷新后重试')
+    )
+
+    const response = await createRouteApp(readerReturning(emptyResult()).reader, adminUser(), { batchUpdateTags }).request(
+      queryRequest({ nodeIds: [8], mode: 'replace', tags: [] }, RAW_CSRF_TOKEN, BATCH_PATH)
+    )
+
+    expect(response.status).toBe(409)
+    expect(JSON.parse(await response.text()) as unknown).toEqual({
+      code: 40902,
+      message: '节点已经被其他操作修改，请刷新后重试',
+      data: null,
+      requestId: REQUEST_ID
+    })
+    expect(batchUpdateTags).toHaveBeenCalledOnce()
+  })
+
+  it('生产应用在完整路径注册批量标签端点', async () => {
+    const response = await createApp(createDependencies()).request(
+      queryRequest({ nodeIds: [8], mode: 'add', tags: ['工具'] }, RAW_CSRF_TOKEN, BATCH_PATH)
+    )
+
+    expect(response.status).toBe(401)
+    expect(JSON.parse(await response.text()) as unknown).toEqual({
+      code: 40102,
+      message: '需要管理员登录',
+      data: null,
+      requestId: REQUEST_ID
+    })
   })
 })
