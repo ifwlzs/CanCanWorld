@@ -7,6 +7,7 @@ import {
   ArrowDown,
   ArrowUp,
   Clipboard,
+  Copy,
   Download,
   ExternalLink,
   Folder,
@@ -34,6 +35,7 @@ import AdminPanel from './components/AdminPanel.vue'
 import BookmarkIcon from './components/BookmarkIcon.vue'
 import FolderTree from './components/FolderTree.vue'
 import NodeEditor from './components/NodeEditor.vue'
+import { copyTextToClipboard } from './utils/clipboard'
 import { NodeMutationRefreshError, useNavigationStore } from './stores/navigation'
 
 // 管理工具仅在用户打开时加载，避免导入和备份组件增加首屏脚本体积。
@@ -232,13 +234,27 @@ function showDeleteError(error: unknown): void {
 async function activateBookmark(node: NavigationNode): Promise<void> {
   if (!node.url) return
   if (node.bookmarkType === 'javascript') {
-    await navigator.clipboard.writeText(node.url)
-    void recordBookmarkClick(node)
-    ElMessage.success('JavaScript 书签已复制')
+    try {
+      await copyTextToClipboard(node.url)
+      ElMessage.success('JavaScript 书签已复制')
+    } catch (error) {
+      ElMessage.error(error instanceof Error ? error.message : '复制失败')
+    }
     return
   }
   window.open(node.url, '_blank', 'noopener,noreferrer')
   void recordBookmarkClick(node)
+}
+
+/** 普通 URL 书签的独立复制动作不打开新窗口，也不增加点击统计。 */
+async function copyBookmarkUrl(node: NavigationNode): Promise<void> {
+  if (!node.url || node.bookmarkType === 'javascript') return
+  try {
+    await copyTextToClipboard(node.url)
+    ElMessage.success('链接已复制')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '复制链接失败')
+  }
 }
 
 /** 打开窗口后再异步计数，计数接口异常不阻塞用户访问目标网站。 */
@@ -559,6 +575,9 @@ onMounted(async () => {
             <button v-if="node.nodeType === 'bookmark'" class="icon-button" type="button" :aria-label="node.bookmarkType === 'javascript' ? '复制脚本' : '打开链接'" @click="activateBookmark(node)">
               <Clipboard v-if="node.bookmarkType === 'javascript'" :size="17" />
               <ExternalLink v-else :size="17" />
+            </button>
+            <button v-if="node.nodeType === 'bookmark' && node.bookmarkType === 'url'" class="icon-button" type="button" aria-label="复制链接" title="复制链接" @click="copyBookmarkUrl(node)">
+              <Copy :size="17" />
             </button>
             <el-dropdown v-if="auth.authenticated" trigger="click">
               <button class="icon-button" type="button" aria-label="更多操作"><MoreHorizontal :size="18" /></button>
