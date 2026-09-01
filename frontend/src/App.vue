@@ -219,6 +219,19 @@ async function removeNode(node: NavigationNode): Promise<void> {
   }
 }
 
+/**
+ * 批量标签写入已提交，重载前台树以同步标签展示与筛选候选。
+ * 树引用变化本身会触发后台表格刷新，因此仅在重载失败时才递增令牌补偿。
+ */
+async function reloadAfterBatchTags(): Promise<void> {
+  try {
+    await navigation.loadTree()
+  } catch {
+    adminRefreshToken.value += 1
+    ElMessage.error('标签已更新，但列表刷新失败，请稍后手动刷新')
+  }
+}
+
 /** 后台路径定位关闭管理面板并切换前台目录，保持用户可继续编辑该目录内容。 */
 function locateAdminFolder(folderId: number): void {
   navigation.selectFolder(folderId)
@@ -414,6 +427,7 @@ onMounted(async () => {
     @locate-folder="locateAdminFolder"
     @layout-change="changeLayoutStyle"
     @theme-change="changeTheme"
+    @tags-updated="reloadAfterBatchTags"
   />
   <div v-else class="app-shell" :data-theme="theme" :data-layout="layoutStyle">
     <header class="topbar">

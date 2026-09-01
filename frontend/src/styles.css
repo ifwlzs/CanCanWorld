@@ -236,8 +236,8 @@ button { letter-spacing: 0; }
 .admin-batch-toolbar { min-height: 42px; display: flex; align-items: center; gap: 12px; padding: 6px 0; color: var(--muted); }
 .admin-batch-toolbar .command-button { margin-left: 0; }
 .admin-batch-form { display: grid; gap: 18px; }
-.admin-batch-form label { display: grid; gap: 8px; }
-.admin-batch-form label > span { color: var(--text); font-size: 13px; font-weight: 600; }
+.admin-batch-field { display: grid; gap: 8px; }
+.admin-batch-field > span { color: var(--text); font-size: 13px; font-weight: 600; }
 .admin-batch-tags { width: 100%; }
 @media (max-width: 640px) {
   .admin-batch-toolbar { min-height: 46px; justify-content: space-between; }
