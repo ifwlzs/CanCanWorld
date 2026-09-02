@@ -79,6 +79,28 @@ interface GroupNodeRow extends RowDataPacket {
   node_type: 'root' | 'folder' | 'bookmark'
 }
 
+/** 清理复核只需节点类型、地址和最近状态。 */
+interface CleanupCandidateRow extends RowDataPacket {
+  id: string | number
+  node_type: 'root' | 'folder' | 'bookmark'
+  url: string | null
+  last_check_status: string | null
+}
+
+/**
+ * 复核节点是否允许被失效清理删除。
+ * 条件与失效查询保持一致：必须是已检测过的普通书签，且最近状态既非成功
+ * 也非访问受限。JavaScript 书签不发起 HTTP 请求，一律排除。
+ */
+function isCleanupEligible(row: CleanupCandidateRow): boolean {
+  if (row.node_type !== 'bookmark') return false
+  if (!row.url || row.url.trimStart().toLowerCase().startsWith('javascript:')) return false
+  const status = row.last_check_status
+  if (!status) return false
+  if (isSuccessStatus(status)) return false
+  return !(ACCESS_RESTRICTED_STATUSES as readonly string[]).includes(status)
+}
+
 /** 失效行携带判定依据，使前端可以解释结论。 */
 interface BrokenRow extends RowDataPacket {
   id: string | number
@@ -304,17 +326,22 @@ export class LinkGovernanceRepository {
 
   /**
    * 批量删除失效书签。
-   * 只删除书签：目录与不存在节点计入 skipped，不会因为单个非法 ID 让整批失败。
+   * 只删除书签，且服务端复核每个节点的最近状态确实属于失败：接口按 ID 删除，
+   * 若不复核，一个错误请求就能删掉健康书签。目录、不存在节点和状态不符的
+   * 节点都计入 skipped，不会因为单个非法 ID 让整批失败。
    */
   async cleanupBroken(input: BrokenCleanupInput): Promise<BrokenCleanupResult> {
     const connection = await this.pool.getConnection()
     try {
       await connection.beginTransaction()
-      const [rows] = await connection.query<GroupNodeRow[]>(
-        `SELECT id, url_hash, node_type FROM navigation_node WHERE id IN (${input.nodeIds.map(() => '?').join(',')}) FOR UPDATE`,
+      const [rows] = await connection.query<CleanupCandidateRow[]>(
+        `SELECT id, node_type, url, last_check_status
+         FROM navigation_node
+         WHERE id IN (${input.nodeIds.map(() => '?').join(',')})
+         FOR UPDATE`,
         input.nodeIds
       )
-      const bookmarkIds = rows.filter((row) => row.node_type === 'bookmark').map((row) => Number(row.id))
+      const bookmarkIds = rows.filter((row) => isCleanupEligible(row)).map((row) => Number(row.id))
       const skipped = input.nodeIds.length - bookmarkIds.length
       if (bookmarkIds.length > 0) {
         await deleteNodeRelations(connection, bookmarkIds)

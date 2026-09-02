@@ -44,6 +44,16 @@ function removeIdsOf(group: DuplicateGroup): number[] {
   return group.members.filter((member) => member.id !== keepId).map((member) => member.id)
 }
 
+/**
+ * 判断组内成员的原始地址是否存在差异。
+ * url_hash 基于规范化 URL，会剥掉 hash 片段并忽略尾斜杠，因此 SPA 的
+ * hash 路由（如 /#/search?q=A 与 /#/search?q=B）会落进同一组，但它们
+ * 其实是不同页面。此时必须提示用户逐条核对，避免误删有效书签。
+ */
+function hasDivergentUrls(group: DuplicateGroup): boolean {
+  return new Set(group.members.map((member) => member.url)).size > 1
+}
+
 function keepIdOf(group: DuplicateGroup): number | undefined {
   return keepByGroup.value[group.urlHash]
 }
@@ -93,8 +103,12 @@ async function mergeGroup(group: DuplicateGroup): Promise<void> {
     ElMessage.warning('请先选择要保留的书签')
     return
   }
+  // 地址不完全相同的分组风险更高，确认文案必须点明这一点。
+  const divergentNotice = hasDivergentUrls(group)
+    ? '注意：该组内的原始地址并不完全相同，可能是不同页面。'
+    : ''
   const confirmed = await ElMessageBox.confirm(
-    `将保留 1 个书签并删除其余 ${removeIds.length} 个，删除后无法恢复，是否继续？`,
+    `${divergentNotice}将保留 1 个书签并删除其余 ${removeIds.length} 个，删除后无法恢复，是否继续？`,
     '合并重复链接',
     { type: 'warning', confirmButtonText: '删除' }
   ).then(() => true, () => false)
@@ -147,7 +161,10 @@ async function cleanupBroken(): Promise<void> {
       method: 'POST',
       body: JSON.stringify({ nodeIds: selectedBroken.value })
     })
-    ElMessage.success(result.skipped > 0 ? `已删除 ${result.removed} 个，跳过 ${result.skipped} 项` : `已删除 ${result.removed} 个失效书签`)
+    // 服务端会复核状态，已恢复或被他人修改的书签会计入 skipped，需要说明原因。
+    ElMessage.success(result.skipped > 0
+      ? `已删除 ${result.removed} 个，跳过 ${result.skipped} 项（状态已变化或不可删除）`
+      : `已删除 ${result.removed} 个失效书签`)
     selectedBroken.value = []
     emit('nodes-changed')
     await load()
@@ -196,10 +213,14 @@ onMounted(() => { void load() })
     <div v-if="view === 'duplicates'" v-loading="loading" class="governance-body">
       <p v-if="!loading && duplicates.items.length === 0 && !errorMessage" class="governance-empty">没有重复链接</p>
       <article v-for="group in duplicates.items" :key="group.urlHash" class="governance-group">
-        <header>
+        <header :class="{ 'is-divergent': hasDivergentUrls(group) }">
           <div>
             <strong>{{ group.members[0]?.url }}</strong>
             <span>{{ group.memberCount }} 个重复，将删除 {{ removeIdsOf(group).length }} 项</span>
+            <!-- 原始地址不一致时明确警示，这类分组不能直接按默认保留项合并。 -->
+            <span v-if="hasDivergentUrls(group)" class="governance-warn" :data-testid="`divergent-${group.members[0]?.id}`">
+              <AlertTriangle :size="13" />组内地址不完全相同，请逐条核对后再合并
+            </span>
           </div>
           <el-button
             :data-testid="`duplicate-merge-${group.members[0]?.id}`"
@@ -228,6 +249,8 @@ onMounted(() => { void load() })
               </button>
               <div class="governance-member-copy">
                 <strong>{{ member.title }}</strong>
+                <!-- 逐条显示原始地址：同组的 hash 路由可能指向不同页面，必须让差异可见。 -->
+                <span class="governance-member-url" :data-testid="`member-url-${member.id}`">{{ member.url }}</span>
                 <span>{{ member.fullPath.join(' / ') }}</span>
                 <span>
                   点击 {{ member.clickCount }} 次

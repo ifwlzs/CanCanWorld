@@ -163,6 +163,41 @@ describe('治理视图重复分组', () => {
     await vi.waitFor(() => expect(messages.error).toHaveBeenCalledWith('待删除书签与保留项不属于同一重复分组'))
   })
 
+  it('逐条展示成员原始地址，使同哈希的不同页面可辨认', async () => {
+    const wrapper = await ready(mountGovernance())
+
+    expect(wrapper.get('[data-testid="member-url-8"]').text()).toBe('https://example.com/')
+    expect(wrapper.get('[data-testid="member-url-9"]').text()).toBe('https://example.com/')
+  })
+
+  it('组内原始地址不同时给出警示', async () => {
+    // url_hash 剥掉 hash 片段，SPA 的 hash 路由会落进同一组但其实是不同页面。
+    const divergent = duplicateResult()
+    divergent.items[0]!.members[1]!.url = 'https://example.com/#/search?q=b'
+    const wrapper = await ready(mountGovernance({ duplicates: divergent }))
+
+    expect(wrapper.find('[data-testid="divergent-8"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('组内地址不完全相同')
+  })
+
+  it('地址完全相同时不显示警示', async () => {
+    const wrapper = await ready(mountGovernance())
+
+    expect(wrapper.find('[data-testid="divergent-8"]').exists()).toBe(false)
+  })
+
+  it('地址不同的分组在确认文案中点明风险', async () => {
+    const { ElMessageBox } = await import('element-plus')
+    const divergent = duplicateResult()
+    divergent.items[0]!.members[1]!.url = 'https://example.com/#/other'
+    const wrapper = await ready(mountGovernance({ duplicates: divergent }))
+
+    await wrapper.get('[data-testid="duplicate-merge-8"]').trigger('click')
+    await vi.waitFor(() => expect(messages.success).toHaveBeenCalled())
+
+    expect(vi.mocked(ElMessageBox.confirm).mock.calls.at(-1)?.[0]).toContain('原始地址并不完全相同')
+  })
+
   it('没有重复组时展示明确说明', async () => {
     const wrapper = await ready(mountGovernance({ duplicates: { items: [], total: 0, page: 1, pageSize: 20 } }))
 

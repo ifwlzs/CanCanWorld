@@ -16,6 +16,8 @@ interface GovernanceFixture {
   brokenRows?: Array<Record<string, unknown>>
   brokenTotal?: number
   rejectDelete?: boolean
+  /** 清理复核用的节点状态，覆盖健康、受限与未检测等情形。 */
+  cleanupNodes?: Array<{ id: number; nodeType: 'bookmark' | 'folder'; url: string | null; lastCheckStatus: string | null }>
 }
 
 /** 构造治理仓储所需的最小数据库替身，按 SQL 语义而非调用序号返回结果。 */
@@ -44,6 +46,16 @@ function governanceRepository(fixture: GovernanceFixture = {}) {
       const ids = values.map((value) => Number(value))
       return [(fixture.groupNodes ?? []).filter((node) => ids.includes(node.id)).map((node) => ({
         id: node.id, url_hash: node.urlHash, node_type: node.nodeType
+      })), []]
+    }
+    if (statement.includes('SELECT id, node_type, url, last_check_status')) {
+      const ids = values.map((value) => Number(value))
+      // 未显式提供 cleanupNodes 时，把 groupNodes 视为已检测失败的普通书签。
+      const nodes = fixture.cleanupNodes ?? (fixture.groupNodes ?? []).map((node) => ({
+        id: node.id, nodeType: node.nodeType, url: 'https://example.com/', lastCheckStatus: 'NOT_FOUND'
+      }))
+      return [nodes.filter((node) => ids.includes(node.id)).map((node) => ({
+        id: node.id, node_type: node.nodeType, url: node.url, last_check_status: node.lastCheckStatus
       })), []]
     }
     if (statement.includes('COUNT(*) AS total') && statement.includes('consecutive')) {
@@ -267,6 +279,51 @@ describe('失效书签批量清理', () => {
     expect(result).toEqual({ removed: 0, skipped: 2 })
     expect(statementsOf(vi.mocked(connection.query)).some((sql) => sql.startsWith('DELETE FROM navigation_node'))).toBe(false)
     expect(connection.commit).toHaveBeenCalledOnce()
+  })
+
+  // 接口按 ID 删除，服务端必须复核状态，否则错误请求能删掉健康书签。
+  it.each([
+    ['最近检测成功', 'UP'],
+    ['重定向可达', 'REDIRECT'],
+    ['需要登录', 'UNAUTHORIZED'],
+    ['拒绝爬虫', 'FORBIDDEN'],
+    ['从未检测', null]
+  ])('%s的书签不会被清理删除', async (_name, status) => {
+    const { repository, connection } = governanceRepository({
+      cleanupNodes: [{ id: 8, nodeType: 'bookmark', url: 'https://example.com/', lastCheckStatus: status }]
+    })
+
+    const result = await repository.cleanupBroken({ nodeIds: [8] })
+
+    expect(result).toEqual({ removed: 0, skipped: 1 })
+    expect(statementsOf(vi.mocked(connection.query)).some((sql) => sql.startsWith('DELETE FROM navigation_node'))).toBe(false)
+  })
+
+  it('JavaScript 书签不会被清理删除', async () => {
+    const { repository, connection } = governanceRepository({
+      cleanupNodes: [{ id: 8, nodeType: 'bookmark', url: 'javascript:void(0)', lastCheckStatus: 'NOT_FOUND' }]
+    })
+
+    const result = await repository.cleanupBroken({ nodeIds: [8] })
+
+    expect(result).toEqual({ removed: 0, skipped: 1 })
+    expect(statementsOf(vi.mocked(connection.query)).some((sql) => sql.startsWith('DELETE FROM navigation_node'))).toBe(false)
+  })
+
+  it('混合请求只删除确实失效的书签', async () => {
+    const { repository, connection } = governanceRepository({
+      cleanupNodes: [
+        { id: 8, nodeType: 'bookmark', url: 'https://a.example.com/', lastCheckStatus: 'NOT_FOUND' },
+        { id: 9, nodeType: 'bookmark', url: 'https://b.example.com/', lastCheckStatus: 'UP' },
+        { id: 10, nodeType: 'bookmark', url: 'https://c.example.com/', lastCheckStatus: 'TIMEOUT' }
+      ]
+    })
+
+    const result = await repository.cleanupBroken({ nodeIds: [8, 9, 10] })
+
+    expect(result).toEqual({ removed: 2, skipped: 1 })
+    const deletion = vi.mocked(connection.query).mock.calls.find(([sql]) => normalize(sql).startsWith('DELETE FROM navigation_node'))
+    expect(deletion?.[1]).toEqual([8, 10])
   })
 
   it('清理失败时回滚事务且始终释放连接', async () => {

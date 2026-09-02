@@ -281,6 +281,10 @@ button { letter-spacing: 0; }
 .governance-member-copy { flex: 1; min-width: 0; display: grid; gap: 3px; }
 .governance-member-copy strong, .governance-member-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .governance-member-copy span { color: var(--muted); font-size: 12px; }
+.governance-member-url { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+/* 地址不一致的分组用警示色标出，避免用户按默认保留项直接合并不同页面。 */
+.governance-group > header.is-divergent { background: #fff8f0; border-bottom-color: #f5d9b8; }
+.governance-warn { display: inline-flex; align-items: center; gap: 5px; color: #b4232c; }
 .governance-keep-option, .governance-edit {
   flex-shrink: 0; padding: 5px 11px; border: 1px solid #dce2e7; border-radius: 7px;
   background: #ffffff; color: var(--muted); font-size: 12px; cursor: pointer;
